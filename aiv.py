@@ -27,7 +27,7 @@ aiv = Struct(
     "y_view" / Pointer(this.dir.dir_size + this.dir.offset[1], Int32ul),
 
     # 2003
-    "trash_1" / Pointer(this.dir.dir_size + this.dir.offset[2], FixedSized(this.dir.uncompr_size[2], GreedyBytes)),
+    "unknown" / Pointer(this.dir.dir_size + this.dir.offset[2], FixedSized(this.dir.uncompr_size[2], GreedyBytes)),
 
     # 2004
     "bmap_size" / Pointer(this.dir.dir_size + this.dir.offset[3], Struct(
@@ -65,8 +65,10 @@ aiv = Struct(
         "crc32" / Pointer( this.crc32_offset, Checksum(Int32ul, lambda l: crc32(l), this.data))
     )),
 
-    # 2007
-    "trash_2" / Pointer(this.dir.dir_size + this.dir.offset[6], FixedSized(this.dir.uncompr_size[6], GreedyBytes)),
+    # 2007 (keep the format close to the other map sections)
+    "bmap_rand" / Pointer(this.dir.dir_size + this.dir.offset[6], Struct(
+            "data" / FixedSized(10000, GreedyBytes)
+    )),
 
     # 2008
     "bmap_id" / Pointer(this.dir.dir_size + this.dir.offset[7], Struct(

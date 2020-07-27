@@ -27,11 +27,11 @@ The data sections contain the actual aiv data. Some of the data is used ingame a
 | :-------: | :---------------- | :------
 | 2001      | `x_view`          | editor
 | 2002      | `y_view`          | editor
-| 2003      | `trash_1`         | unknown
+| 2003      | `unknown`         | unknown
 | 2004      | `bmap_size`       | editor
 | 2005      | `bmap_tile`       | editor
 | 2006      | `tmap`            | editor
-| 2007      | `trash_2`         | unknown
+| 2007      | `bmap_rand`       | editor
 | 2008      | `bmap_id`         | game + editor
 | 2009      | `bmap_step`       | game + editor
 | 2010      | `step_current`    | editor
@@ -51,9 +51,14 @@ Before discussing the each of the section, we want to state that the map section
 
 Specifies the viewport within the aiv editor, `x_view` goes from left (0) to right (0x97F=2431), `y_view` from top (0) to bottom (0x97F=2431).
 
-## trash_1
+## unknown
 
-Pseudo-random data. This gets initialized when starting the editor, and does not change when editing the aiv. It seems like it has a 16 byte header and then a uint32_t-map, where the most significant bit is always 0, and no entry with value 0. Filling this section with random data does not break the aiv.
+Pseudo-random data. This gets initialized when starting the editor, and does not change when editing the aiv. Filling this section with random data does not break the aiv.  
+Some observations:
+
+- if one interprets the the first 16 bytes as header, the remaining data can be interpreted as `100 x 100` int32_t array. For all entries, the most significant bit is 0, so all entries are non-negative. Furthermore no 0.
+- if one interprets the the first 16 bytes as header, the remaining data can be interpreted as `200 x 200` int8_t array. Here, all int8_t values are contained.
+- if one interprets the last 8 bytes as two uint32_t, all vanilla aiv end with `10001 1` or `1 1` (also the dummy aivs ones I tested)
 
 ## bmap_size
 
@@ -67,9 +72,9 @@ Map, where each tile stores which tile within the tileset `color tiles.bmp`/ `co
 
 Map, where the rally points specified in tarr are visualized for the editor. It is not completely clear why, because only the unit id is saved (and not which entry). This seems to relate to the bug, when one has two units on the same spot: if you delete the top one, the tmap entry is zero, not the id of the unit below.
 
-## trash_2
+## bmap_rand
 
-Pseudo-random data. This gets initialized when starting the editor, and does not change when editing the aiv. All entries are uint8_t from 0 to 7. Filling this section with random data does not break the aiv.
+Map, where each tile stores which grass tile of the tileset `color tiles.bmp`/ `color tiles.gm1` is used within the editor. Randomly initialized.
 
 ## bmap_id
 

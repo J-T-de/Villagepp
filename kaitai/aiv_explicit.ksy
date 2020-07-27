@@ -15,7 +15,7 @@ seq:
     type: u4
   - id: y_view
     type: u4
-  - id: trash_1
+  - id: unknown
     size: 40016
   - id: bmap_size
     type: bmap_size
@@ -23,7 +23,7 @@ seq:
     type: bmap_tile
   - id: tmap
     type: tmap
-  - id: trash_2
+  - id: bmap_rand
     size: 10000
   - id: bmap_id
     type: bmap_id
