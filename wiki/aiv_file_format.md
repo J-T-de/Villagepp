@@ -1,7 +1,7 @@
 # AIV File Format
 
-The aiv consists of a directory, which specifies where and how the data is stored, and the actual data. Thanks to [gynt](https://github.com/gynt) from the [sourcehold maps](github.com/sourcehold/sourcehold-maps) team, who found out how the directory works!  
-You can find the aiv file structure in the Kaitai format, one time the general layout in [`aiv.ksy`](github.com/J-T-de/Villagepp/blob/master/kaitai/aiv.ksy), and one time an 'unrolled' version [`aiv_explicit.ksy`](github.com/J-T-de/Villagepp/blob/master/kaitai/aiv_explicit.ksy) which includes the names specified later in this document. For the actual deserialization and serialization we use the [`aiv.py`](https://github.com/J-T-de/Villagepp/blob/master/aiv.py), which includes more logic.
+The aiv consists of a directory, which specifies where and how the data is stored, and the actual data. Thanks to [gynt](https://github.com/gynt) from the [sourcehold maps](https://github.com/sourcehold/sourcehold-maps) team, who found out how the directory works!  
+You can find the aiv file structure in the Kaitai format, one time the general layout in [`aiv.ksy`](https://github.com/J-T-de/Villagepp/blob/master/kaitai/aiv.ksy), and one time an 'unrolled' version [`aiv_explicit.ksy`](https://github.com/J-T-de/Villagepp/blob/master/kaitai/aiv_explicit.ksy) which includes the names specified later in this document. For the actual deserialization and serialization we use the [`aiv.py`](https://github.com/J-T-de/Villagepp/blob/master/aiv.py), which includes more logic.
 
 # Directory
 
