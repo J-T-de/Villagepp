@@ -1,7 +1,7 @@
 # AIV File Format
 
 The aiv consists of a directory, which specifies where and how the data is stored, and the actual data. Thanks to [gynt](https://github.com/gynt) from the [sourcehold maps](github.com/sourcehold/sourcehold-maps) team, who found out how the directory works!  
-You can find the aiv file structure in the Kaitai format, one time the general layout in `aiv.ksy`, and one time an 'unrolled' version `aiv_explicit.ksy` which includes the names specified later in this document. For the actual deserialization and serialization we use the `aiv.py`, which includes more logic.
+You can find the aiv file structure in the Kaitai format, one time the general layout in [`aiv.ksy`](github.com/J-T-de/Villagepp/blob/master/kaitai/aiv.ksy), and one time an 'unrolled' version [`aiv_explicit.ksy`](github.com/J-T-de/Villagepp/blob/master/kaitai/aiv_explicit.ksy) which includes the names specified later in this document. For the actual deserialization and serialization we use the [`aiv.py`](https://github.com/J-T-de/Villagepp/blob/master/aiv.py), which includes more logic.
 
 # Directory
 
@@ -45,13 +45,13 @@ In general, the data can be interpreted as
 - an array
 - a map/matrix
 
-Before discussing the each of the section, we want to state that the map section are `100 x 100`, enumerated from left to right, from top to bottom.
+Before discussing the each of the section, we want to state that the map sections are `100 x 100`, enumerated from left to right (x-direction), from top to bottom (y-direction).
 
-## `x_view` and `y_view`
+## x_view and y_view
 
-Specifies the viewport within the aiv editor, x_view goes from left (0) to right (0x97F=2431), y_view from top (0) to bottom (0x97F=2431).
+Specifies the viewport within the aiv editor, `x_view` goes from left (0) to right (0x97F=2431), `y_view` from top (0) to bottom (0x97F=2431).
 
-## `trash_1`
+## trash_1
 
 Pseudo-random data. This gets initialized when starting the editor, and does not change when editing the aiv. It seems like it has a 16 byte header and then a uint32_t-map, where the most significant bit is always 0, and no entry with value 0. Filling this section with random data does not break the aiv.
 
