@@ -1,0 +1,1 @@
+The compression dll is compiled from [github.com/ladislav-zezula/StormLib/tree/master/src/pklib] and copied from [github.com/sourcehold/sourcehold-maps/].
