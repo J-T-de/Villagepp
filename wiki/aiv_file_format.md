@@ -27,17 +27,17 @@ The data sections contain the actual aiv data. Some of the data is used ingame a
 | :-------: | :---------------- | :------
 | 2001      | `x_view`          | editor
 | 2002      | `y_view`          | editor
-| 2003      | `unknown`         | unknown
+| 2003      | `random_state`    | editor
 | 2004      | `bmap_size`       | editor
 | 2005      | `bmap_tile`       | editor
-| 2006      | `tmap`            | editor
-| 2007      | `bmap_rand`       | editor
-| 2008      | `bmap_id`         | game + editor
-| 2009      | `bmap_step`       | game + editor
-| 2010      | `step_current`    | editor
-| 2011      | `step_total`      | editor
-| 2012      | `pause_step`      | game + editor
-| 2013      | `tarr`            | game + editor
+| 2006      | `gmap`            | editor
+| 2007      | `bmap_id`         | game + editor
+| 2008      | `bmap_step`       | game + editor
+| 2009      | `step_current`    | editor
+| 2010      | `step_total`      | editor
+| 2011      | `pause_step`      | game + editor
+| 2012      | `tarr`            | game + editor
+| 2013      | `tmap`            | editor
 | 2014      | `pause`           | game + editor
 
 In general, the data can be interpreted as
@@ -45,20 +45,15 @@ In general, the data can be interpreted as
 - an array
 - a map/matrix
 
-Before discussing the each of the section, we want to state that the map sections are `100 x 100`, enumerated from left to right (x-direction), from top to bottom (y-direction).
+Before discussing the each of the section, we want to state that the map sections are `100 x 100`, enumerated from top to bottom (index `i`) and left to right (index `j`).
 
 ## x_view and y_view
 
 Specifies the viewport within the aiv editor, `x_view` goes from left (0) to right (0x97F=2431), `y_view` from top (0) to bottom (0x97F=2431).
 
-## unknown
+## random_state
 
-Pseudo-random data. This gets initialized when starting the editor, and does not change when editing the aiv. Filling this section with random data does not break the aiv.  
-Some observations:
-
-- if one interprets the the first 16 bytes as header, the remaining data can be interpreted as `100 x 100` int32_t array. For all entries, the most significant bit is 0, so all entries are non-negative. Furthermore no 0.
-- if one interprets the the first 16 bytes as header, the remaining data can be interpreted as `200 x 200` int8_t array. Here, all int8_t values are contained.
-- if one interprets the last 8 bytes as two uint32_t, all vanilla aiv end with `10001 1` or `1 1` (also the dummy aivs ones I tested)
+Internal state of the random number generator. Presumely only used to initialize the `gmap`. Shoutout to [JuGGerNaunT](https://www.moddb.com/members/juggernaunt) for this finding!
 
 ## bmap_size
 
@@ -68,13 +63,9 @@ Map, where each tile stores the size of the building which stands on it. This is
 
 Map, where each tile stores which tile within the tileset `color tiles.bmp`/ `color tiles.gm1` is used within the editor. The top left corner is tile one, which has a frame on the left and on the top, the tile 5 has only a top frame and so on.
 
-## tmap
+## gmap
 
-Map, where the rally points specified in tarr are visualized for the editor. It is not completely clear why, because only the unit id is saved (and not which entry). This seems to relate to the bug, when one has two units on the same spot: if you delete the top one, the tmap entry is zero, not the id of the unit below.
-
-## bmap_rand
-
-Map, where each tile stores which grass tile of the tileset `color tiles.bmp`/ `color tiles.gm1` is used within the editor. Randomly initialized.
+Map, where each tile stores which grass tile of the tileset `color tiles.bmp`/ `color tiles.gm1` is used within the editor (0 to 7). Probably initialized using the random number generator with internal state `random_state`.
 
 ## bmap_id
 
@@ -94,9 +85,13 @@ Array of uint32_t, where each step in which a pause happens is written. For vani
 
 ## tarr
 
-Array of uint32_t, where the position of each rally point is encoded. Each unit type has potentially 10 rally points. For example, crossbowmen have unit_id 7, so the first rally point is `tarr[70]` and the last one `tarr[79]`, and the `x`- and `y`-position of the first rally point of crossbowmen can be determined via
+Array of uint32_t, where the position of each rally point is encoded. Each unit type has potentially 10 rally points. For example, crossbowmen have unit_id 7, so the first rally point is `tarr[70]` and the last one `tarr[79]`, and the `i`- and `j`-position of the first rally point of crossbowmen can be determined via
 
-`x, y = divmod(tarr[70], 100) `
+`j, i = divmod(tarr[70], 100) `
+
+## tmap
+
+Map, where the rally points specified in tarr are visualized for the editor. It is not completely clear why, because only the unit id is saved (and not which entry). This seems to relate to the bug, when one has two units on the same spot: if you delete the top one, the tmap entry is zero, not the id of the unit below.
 
 ## pause
 

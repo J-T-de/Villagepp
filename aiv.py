@@ -27,7 +27,7 @@ aiv = Struct(
     "y_view" / Pointer(this.dir.dir_size + this.dir.offset[1], Int32ul),
 
     # 2003
-    "unknown" / Pointer(this.dir.dir_size + this.dir.offset[2], FixedSized(this.dir.uncompr_size[2], GreedyBytes)),
+    "random_state" / Pointer(this.dir.dir_size + this.dir.offset[2], FixedSized(this.dir.uncompr_size[2], GreedyBytes)),
 
     # 2004
     "bmap_size" / Pointer(this.dir.dir_size + this.dir.offset[3], Struct(
@@ -53,7 +53,7 @@ aiv = Struct(
         "crc32" / Pointer( this.crc32_offset, Checksum(Int32ul, lambda l: crc32(l), this.data))
     )),
 
-    # 2006
+    # 2013
     "tmap" / Pointer(this.dir.dir_size + this.dir.offset[5], Struct(
         "uncompr_size" / Int32ul,
         "uncompr_size" / Computed(this._.dir.uncompr_size[5]),
@@ -65,12 +65,12 @@ aiv = Struct(
         "crc32" / Pointer( this.crc32_offset, Checksum(Int32ul, lambda l: crc32(l), this.data))
     )),
 
-    # 2007 (keep the format close to the other map sections)
-    "bmap_rand" / Pointer(this.dir.dir_size + this.dir.offset[6], Struct(
+    # 2006 (keep the format close to the other map sections)
+    "gmap" / Pointer(this.dir.dir_size + this.dir.offset[6], Struct(
             "data" / FixedSized(10000, GreedyBytes)
     )),
 
-    # 2008
+    # 2007
     "bmap_id" / Pointer(this.dir.dir_size + this.dir.offset[7], Struct(
         "uncompr_size" / Int32ul,
         "uncompr_size" / Computed(this._.dir.uncompr_size[7]),
@@ -82,7 +82,7 @@ aiv = Struct(
         "crc32" / Pointer( this.crc32_offset, Checksum(Int32ul, lambda l: crc32(l), this.data))
     )),
 
-    # 2009
+    # 2008
     "bmap_step" / Pointer(this.dir.dir_size + this.dir.offset[8], Struct(
         "uncompr_size" / Int32ul,
         "uncompr_size" / Computed(this._.dir.uncompr_size[8]),
@@ -94,16 +94,16 @@ aiv = Struct(
         "crc32" / Pointer( this.crc32_offset, Checksum(Int32ul, lambda l: crc32(l), this.data))
     )),
 
-    # 2010
+    # 2009
     "step_current" / Pointer(this.dir.dir_size + this.dir.offset[9], Int32ul),
 
-    # 2011
+    # 2010
     "step_total" / Pointer(this.dir.dir_size + this.dir.offset[10], Int32ul),
     
-    # 2012
+    # 2011
     "pause_step" / Pointer(this.dir.dir_size + this.dir.offset[11], Array(this.dir.uncompr_size[11]//4, Int32sl)),
 
-    # 2013
+    # 2012
     "tarr" / Pointer(this.dir.dir_size + this.dir.offset[12], Array(this.dir.uncompr_size[12]//4, Int32ul)),
     
     # 2014

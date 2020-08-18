@@ -15,7 +15,7 @@ seq:
     type: u4
   - id: y_view
     type: u4
-  - id: unknown
+  - id: random_state
     size: 40016
   - id: bmap_size
     type: bmap_size
@@ -23,7 +23,7 @@ seq:
     type: bmap_tile
   - id: tmap
     type: tmap
-  - id: bmap_rand
+  - id: gmap
     size: 10000
   - id: bmap_id
     type: bmap_id
