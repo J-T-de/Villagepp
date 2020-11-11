@@ -143,14 +143,14 @@ class Building_Size(IntEnum):
     # Industry
     STOCKPILE       = 5
     WOODCUTTER      = 3
-    QUARRY          = 7
+    QUARRY          = 6
     OX_TETHER       = 2
     IRON_MINE       = 4
     PITCH_RIG       = 4
     TRADING_POST    = 5
     # Food
     GRANARY     = 4
-    APPLE_FARM  = 10    # Should be 11, relates to one of Crusader's bugs
+    APPLE_FARM  = 11
     DAIRY_FARM  = 10
     WHEAT_FARM  = 9
     HUNTER      = 3
@@ -187,7 +187,7 @@ class Building_Size(IntEnum):
     CHOPPING_BLOCK  = 3
     DUNKING_STOOL   = 5
 
-class Troops(IntEnum):
+class Troop_Id(IntEnum):
     # Misc
     OIL     = 1
     MGL     = 2
