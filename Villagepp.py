@@ -1,15 +1,18 @@
 #TODO:
 #lvl1
-#steps-karte: step-regler implementieren + entsprechende darstellung der karte
+#rework buttons/menus
 #lvl1.5
-#troops - git blame julius
-#build nice menus - nice text, arrangement and sorting - boxes
+#build nice menus - nice text, arrangement and sorting - boxes + highlighting of buttons
+#improve drawing-performance: implement 2D culling - add .convert to surfaces
 #lvl2
-#implement 2D culling
 #dateien variabel einlesen
 #different resolutions
-#lvl3
+
+#"bugs":
+#'make' map draggable even when mouse is not above map-screen any more (i.e. when above menu)
 #make other building-buttons clickable even when a building is already chosen (check for button when action==drag_sth and then set action to choosing)
+#make troops semi-transparent
+#make america great again
 
 import pygame as pg
 import aiv
@@ -60,7 +63,7 @@ class submenu:
         for x in range(self.width):
             for y in range(self.height):
                 #textSurface, rect = self.font.render(self.buttons[x + y*self.width], (255, 255, 255))
-                textSurface = self.font.render(str(self.buttons[x + y*self.width]), False, (255, 255, 255))
+                textSurface = self.font.render(str(self.buttons[x + y*self.width]), True, (255, 255, 255))
                 surface.blit(textSurface, (x*self.btnsize[0], y*self.btnsize[1]))
         return surface
 
@@ -93,6 +96,7 @@ class editor:
         #self.sysfont = pg.freetype.SysFont("Shia LaBeouf.ttf", 24)
         pg.font.init()
         self.sysfont = pg.font.SysFont("Shia LaBeouf.ttf", 10)
+        self.dbgFont = pg.font.SysFont("Shia LaBeouf.ttf", 15)
         self.troopFont = pg.font.SysFont("Shia LaBeouf.ttf", 20)
         self.buildingNameFont = pg.font.SysFont("Shia LaBeouf.ttf", 20)
         self.submenufont = pg.font.SysFont("Shia LaBeouf.ttf", 20)
@@ -215,6 +219,7 @@ class editor:
         self.action = Action.NO_ACTION
         
         #init stuff
+        self.mapType = "normal"
         self.redrawMapSurface()
         self.assembleMap()
         self.drawMapOnScreen()
@@ -271,24 +276,24 @@ class editor:
                     surfaceList.append(self.getInputTile(elem.value//10, variation, rawBMP))
             self.buildingSurfaces.update({elem.value : surfaceList})
         for elem in aiv_enums.Troop_Id:
-            surface = self.troopFont.render(str(elem.name), False, (255, 0, 0))
+            surface = self.troopFont.render(str(elem.name), True, (255, 0, 0))
             self.troopSurfaces.update({elem.value : surface})
     
     def loadDummySurfaces(self):
         #generate map of (enum, surface) where surface is just a surfaces of TILE_SIZE x TILE_SIZE with text from enum
         for elem in aiv_enums.Building_Id:
             #textSurface, rect = self.sysfont.render(str(elem.name), False, (255, 255, 255))
-            textSurface = self.sysfont.render(str(elem.name), False, (255, 255, 255))
+            textSurface = self.sysfont.render(str(elem.name), True, (255, 255, 255))
             buildingSurface = pg.Surface((self.TILE_SIZE, self.TILE_SIZE))
             buildingSurface.blit(textSurface, (0, 0))
             self.buildingSurfaces.update({elem.value : buildingSurface})
         
     def assembleMap(self):
-        print("assembling map")
-        self.mapScreen.fill(pg.Color(0,255,0))
+        dbgPrint("assembling map")
+        self.mapScreen.fill(pg.Color(0,0,0))
         self.mapScreen.blit(self.mapSurface, (self.mapXOffset, self.mapYOffset))
         if(self.action == Action.DRAG_STH):
-            print("assembling map with sth to drag")
+            dbgPrint("assembling map with sth to drag")
             (mouseMapXCoord, mouseMapYCoord) = self.MapCoords(self.mousePosition)
             xSize, ySize = self.dragSurface.get_size()
             xSize = xSize/self.TILE_SIZE
@@ -301,7 +306,7 @@ class editor:
 
         stepDisp = str(self.aivLogic.step_cur) + "/" + str(self.aivLogic.step_tot)
         font = pg.font.SysFont("Shia LaBeouf.ttf", 30)
-        stepSurface = font.render(stepDisp, False, (255, 0, 0))
+        stepSurface = font.render(stepDisp, True, (255, 0, 0))
         self.mapScreen.blit(stepSurface, (0, 0))
 
     def updateShadow(self):
@@ -327,7 +332,7 @@ class editor:
             #TODO
             if(self.chosenButton[0].type == MenuType.troop):
                 troop = self.chosenButton[1]
-                self.dragSurface = self.sysfont.render(troop, False, (255, 255, 255), (0, 0, 0))
+                self.dragSurface = self.sysfont.render(troop, True, (255, 255, 255), (0, 0, 0))
                 (xPos, yPos) = self.MapCoords(self.mousePosition)
                 if(xPos >= aiv.AIV_SIZE):
                     xPos = aiv.AIV_SIZE - xSize
@@ -346,41 +351,86 @@ class editor:
 #               self.dragSurface.fill(pg.Color(255,0,0))
         
     def redrawMapSurface(self): #redraws the map-surface, but not the screen
-        namePositions = []
-        self.mapSurface.fill(pg.Color(255,255,255))
-        for x in range(0, aiv.AIV_SIZE):
-            for y in range(0, aiv.AIV_SIZE):
-                buildingId = self.aivLogic.bmap_id[y, x]
-                #buildingStep = self.aivLogic.bmap_step[y, x]
-                #if(buildingStep <= self.aivLogic.currentSte
-                #gmap not implemented yet :/ git blame julius
-                if(buildingId == aiv_enums.Building_Id.NOTHING):
-                    self.mapSurface.blit(self.buildingSurfaces[buildingId][self.aivLogic.gmap[x,y]], (x*self.TILE_SIZE, y*self.TILE_SIZE))
-                else:
-                    buildingSurface = self.buildingSurfaces[buildingId][self.aivLogic.bmap_tile[y, x]].copy()
-                    if(self.aivLogic.bmap_step[y, x] >= self.aivLogic.step_cur):
-                        buildingSurface.set_alpha(127)
-                        self.mapSurface.blit(buildingSurface, (x*self.TILE_SIZE, y*self.TILE_SIZE))
+        if(self.mapType == "normal"):
+            namePositions = []
+            self.mapSurface.fill(pg.Color(255,255,255))
+            for x in range(0, aiv.AIV_SIZE):
+                for y in range(0, aiv.AIV_SIZE):
+                    buildingId = self.aivLogic.bmap_id[y, x]
+                    #buildingStep = self.aivLogic.bmap_step[y, x]
+                    #if(buildingStep <= self.aivLogic.currentSte
+                    #gmap not implemented yet :/ git blame julius
+                    if(buildingId == aiv_enums.Building_Id.NOTHING):
+                        self.mapSurface.blit(self.buildingSurfaces[buildingId][self.aivLogic.gmap[x,y]], (x*self.TILE_SIZE, y*self.TILE_SIZE))
                     else:
-                        #self.buildingSurfaces[buildingId][self.aivLogic.bmap_tile[y, x]], (x*self.TILE_SIZE, y*self.TILE_SIZE)
-                        self.mapSurface.blit(buildingSurface, (x*self.TILE_SIZE, y*self.TILE_SIZE))
-                if(self.aivLogic.bmap_tile[y, x] == 1):
-                    namePositions.append((x,y))
-        for pos in namePositions:
-            (x, y) = pos
-            size = self.aivLogic.bmap_size[y, x]
-            textSurface = self.buildingNameFont.render(str(aiv_enums.Building_Id(self.aivLogic.bmap_id[y, x]).name), False, (0, 0, 0))
-            (width, height) = textSurface.get_size()
-            self.mapSurface.blit(textSurface, ((x + size/2 )*self.TILE_SIZE - width/2, (y + size/2)*self.TILE_SIZE - height/2))
-        for x in range(0, aiv.AIV_SIZE):
-            for y in range(0, aiv.AIV_SIZE):
-                troopId = self.aivLogic.tmap[y, x]
-                if(troopId != 0):
-                    troopSurface = self.troopSurfaces[troopId]
-                    tile = pg.Surface((self.TILE_SIZE, self.TILE_SIZE))
-                    tile.fill(pg.Color(0, 0, 100))
-                    self.mapSurface.blit(tile, (x*self.TILE_SIZE, y*self.TILE_SIZE))
-                    self.mapSurface.blit(troopSurface, (x*self.TILE_SIZE + troopSurface.get_width()/2, y*self.TILE_SIZE + troopSurface.get_height()/2))
+                        buildingSurface = self.buildingSurfaces[buildingId][self.aivLogic.bmap_tile[y, x]].copy()
+                        if(self.aivLogic.bmap_step[y, x] >= self.aivLogic.step_cur):
+                            buildingSurface.set_alpha(127)
+                            self.mapSurface.blit(buildingSurface, (x*self.TILE_SIZE, y*self.TILE_SIZE))
+                        else:
+                            #self.buildingSurfaces[buildingId][self.aivLogic.bmap_tile[y, x]], (x*self.TILE_SIZE, y*self.TILE_SIZE)
+                            self.mapSurface.blit(buildingSurface, (x*self.TILE_SIZE, y*self.TILE_SIZE))
+                    if(self.aivLogic.bmap_tile[y, x] == 1):
+                        namePositions.append((x,y))
+            for pos in namePositions:
+                (x, y) = pos
+                size = self.aivLogic.bmap_size[y, x]
+                textSurface = self.buildingNameFont.render(str(aiv_enums.Building_Id(self.aivLogic.bmap_id[y, x]).name), True, (0, 0, 0))
+                (width, height) = textSurface.get_size()
+                self.mapSurface.blit(textSurface, ((x + size/2 )*self.TILE_SIZE - width/2, (y + size/2)*self.TILE_SIZE - height/2))
+            for x in range(0, aiv.AIV_SIZE):
+                for y in range(0, aiv.AIV_SIZE):
+                    troopId = self.aivLogic.tmap[y, x]
+                    if(troopId != 0):
+                        troopSurface = self.troopSurfaces[troopId]
+                        tile = pg.Surface((self.TILE_SIZE, self.TILE_SIZE))
+                        tile.fill(pg.Color(0, 0, 100))
+                        self.mapSurface.blit(tile, (x*self.TILE_SIZE, y*self.TILE_SIZE))
+                        self.mapSurface.blit(troopSurface, (int((x + 0.5)*self.TILE_SIZE - troopSurface.get_width()/2), int((y + 0.5)*self.TILE_SIZE - troopSurface.get_height()/2)))
+        else:
+            self.mapSurface.fill(pg.Color(255,255,255))
+            for x in range(0, aiv.AIV_SIZE):
+                for y in range(0, aiv.AIV_SIZE):
+                    tmpSurface = None
+                    if(self.mapType == "bmap_id"):
+                        buildingId = self.aivLogic.bmap_id[y, x]
+                        txt = buildingId
+
+                    elif(self.mapType == "bmap_id_name"):
+                        buildingId = self.aivLogic.bmap_id[y, x]
+                        buildingName = aiv_enums.Building_Id(buildingId).name
+                        txt = buildingName
+
+                    elif(self.mapType == "bmap_size"):
+                        bmapSize = self.aivLogic.bmap_size[y, x]
+                        txt = bmapSize
+
+                    elif(self.mapType == "bmap_tile"):
+                        bmapTile = self.aivLogic.bmap_tile[y, x]
+                        txt = bmapTile
+
+                    elif(self.mapType == "tmap"):
+                        tmap = self.aivLogic.tmap[y, x]
+                        txt = tmap
+
+                    elif(self.mapType == "bmap_step"):
+                        bmapStep = self.aivLogic.bmap_step[x, y]
+                        txt = bmapStep
+
+                    elif(self.mapType == "tmap_name"):
+                        tmap = self.aivLogic.tmap[y, x]
+                        tmapName = "0"
+                        if(tmap in aiv_enums.Troop_Id._value2member_map_):
+                            tmapName = aiv_enums.Troop_Id(tmap).name
+                        txt = tmapName
+
+                    else:
+                        print("No known mapType!")
+                        break
+
+                    tmpSurface = self.dbgFont.render(str(txt), True, (0, 0, 0, 255))
+                    self.mapSurface.blit(tmpSurface, (int((x + 0.5)*self.TILE_SIZE - tmpSurface.get_width()/2), int((y + 0.5)*self.TILE_SIZE - tmpSurface.get_height()/2)))
+
 
     def drawMapOnScreen(self):
         self.screen.blit(self.mapScreen, (0, 0))
@@ -397,7 +447,7 @@ class editor:
             dbgPrint("Drawing submenu to menuScreen")
             self.menuScreen.blit(self.activeSubmenu.drawSubmenu(), self.activeSubmenu.offset)
         else:
-            print("No submenu to draw")
+            dbgPrint("No submenu to draw")
         #button über denen gehovert wird aufleuchten lassen
         #button der ausgewählt ist durchgehend aufleuchten lassen
     
@@ -513,9 +563,43 @@ class editor:
         #MOUSEMOTION       pos, rel, buttons
         #MOUSEBUTTONUP     pos, button
         #MOUSEBUTTONDOWN   pos, button
+
+        #debug screen
+        if(event.type == pg.KEYDOWN):
+            if(event.key == pg.K_1):
+                self.mapType = "normal"
+                dbgPrint("self.mapType = normal")
+            elif(event.key == pg.K_2):
+                self.mapType = "bmap_size"
+                dbgPrint("self.mapType = bmap_size")
+            elif(event.key == pg.K_3):
+                self.mapType = "bmap_tile"
+                dbgPrint("self.mapType = bmap_tile")
+            elif(event.key == pg.K_4):
+                self.mapType = "tmap"
+                dbgPrint("self.mapType = tmap")
+            elif(event.key == pg.K_5):
+                self.mapType = "bmap_id"
+                dbgPrint("self.mapType = bmap_id")
+            elif(event.key == pg.K_6):
+                self.mapType = "bmap_step"
+                dbgPrint("self.mapType = bmap_step")
+            elif(event.key == pg.K_7):
+                self.mapType = "bmap_id_name"
+                dbgPrint("self.mapType = bmap_id_name")
+            elif(event.key == pg.K_8):
+                self.mapType = "tmap_name"
+                dbgPrint("self.mapType = tmap_name")
+            self.updateShadow()
+            self.redrawMapSurface()
+            self.assembleMap()
+            self.drawMapOnScreen()
+            self.gameDisplay.update()
+
+
         #change action depending on current action and event
         if(self.action == Action.NO_ACTION):
-            print("no action")
+            dbgPrint("no action")
             #left-click could either drags the map or chooses a button
             if(event.type == pg.MOUSEBUTTONDOWN and event.button == 1):
                 #mouse on map:
@@ -531,7 +615,7 @@ class editor:
                 #left button hasn't been clicked - nothing has been chosen
                 self.chosenButton = None
         elif(self.action == Action.CHOOSING):
-            print("choosing")
+            dbgPrint("choosing")
             if(event.type == pg.MOUSEBUTTONUP and event.button == 1):
                 # - kein callback mehr: funktion fest mit submenu-type verbinden.
                 # -- submenu umschalten
@@ -542,8 +626,8 @@ class editor:
                 # -- datei speichern
                 otherButton = self.checkButtons()
                 if(self.equalButtons(otherButton)):
-                    print("clicked on same button")
-                    print(self.chosenButton[0].type)
+                    dbgPrint("clicked on same button")
+                    dbgPrint(self.chosenButton[0].type)
                     if(self.chosenButton[0].type == MenuType.building or self.chosenButton[0].type == MenuType.troop):
                         self.action = Action.DRAG_STH
                         self.updateShadow()
@@ -581,7 +665,7 @@ class editor:
                 self.chosenButton = None
                 self.action = Action.NO_ACTION
         elif(self.action == Action.DRAG_STH):
-            print("dragging sth")
+            dbgPrint("dragging sth")
             #check if placeable
             if(self.mousePosition[0] < self.menuOffset[0]): #stuff is only dragged when mouse is above map
                 if(event.type == pg.MOUSEMOTION):
@@ -617,7 +701,7 @@ class editor:
                 self.drawMapOnScreen()
                 self.gameDisplay.update()
         elif(self.action == Action.DRAG_MAP):
-            print("dragging map")
+            dbgPrint("dragging map")
             if(event.type == pg.MOUSEMOTION and event.buttons == (1, 0, 0) and event.pos[0] < self.screenHeight and event.pos[1] < self.screenWidth):
                 self.mapXOffset += event.rel[0]
                 self.mapYOffset += event.rel[1]
