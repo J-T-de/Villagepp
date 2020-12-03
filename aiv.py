@@ -13,8 +13,6 @@ AIV_SIZE = 100
 
 class Aiv(object):
     def __init__(self, path=None):
-        self.path = path
-    
         if (path==None):
             self.create_empty()
         else:
@@ -218,9 +216,7 @@ class Aiv(object):
         size = self.dir_compr_size[i]
         self.pause = np.frombuffer(aiv_data[offset:offset+size], np.int32)[0]
 
-    def save(self, path=None):
-        if (path == None):
-                path = self.path
+    def save(self, path):
 
         aiv_file = open(path, 'wb')
 
@@ -430,7 +426,7 @@ class Aiv(object):
         aiv_file.write(aiv_dir + aiv_data)
         aiv_file.close()
 
-    def save_preview(self, path=None):
+    def save_preview(self, path):
         mapping_classic = {
             0:      (0x51, 0x60, 0x2D), # TODO
             1:      (0x00, 0x00, 0x00), # TODO
@@ -818,9 +814,3 @@ class Building():
 
 aiv = Aiv("res/pig8.aiv")
 aiv.save_preview("out/test2.png")
-
-# print(aiv.dir_compr_size)
-# aiv.save("out/pig8_test.aiv")
-
-# aiv = Aiv()
-# aiv.save("out/empty.aiv")
