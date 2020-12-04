@@ -172,7 +172,19 @@ class Villagepp(tk.Tk):
 
 
         def zoomOut(self, event = None):
+
+            (x0, y0) = self.mapOrigin #in units of pixel
+
+            x0T = x0/self.TileSize # in units of tiles*pixel
+            y0T = y0/self.TileSize
+
             self.TileSize = self.TileSize - 1
+
+            x0N = int(x0T*self.TileSize)
+            y0N = int(y0T*self.TileSize)
+
+            self.mapOrigin = (x0N, y0N)
+
             self.resizeTileset()
             self.redrawMapSurface()
             self.updateMapScreen()
