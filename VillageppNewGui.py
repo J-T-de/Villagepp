@@ -152,23 +152,19 @@ class Villagepp(tk.Tk):
             self.chosenUnit = None
 
             self.mapSurface = Image.new("RGBA", (self.TileSize*AIV_SIZE, self.TileSize*AIV_SIZE), (0, 0, 0, 255))
-
             self.redrawMapSurface()
 
-            #draw map as big as possible on canvas on init because tkinter is a bitch
-            #overkill:
-            #self.screenSize = (self.TileSize*AIV_SIZE, self.TileSize*AIV_SIZE)
             #size of whole editor
-            self.screenSize = (self.parent.winfo_width(), self.parent.winfo_height())
-            #is not really set before canvas is drawn
-            #self.screenSize = (frame_parent.winfo_width(), frame_parent.winfo_height())
+            FrameWidth = self.canvas.winfo_width()
+            FrameHeight = self.canvas.winfo_height()
+            self.screenTSize = ((FrameWidth + self.TileSize - 1)//self.TileSize, (FrameHeight + self.TileSize - 1)//self.TileSize)
+            self.screenSize = (FrameWidth, FrameHeight)
+
             blackground = Image.new("RGB", self.screenSize, (0, 0, 0))
             blackground.paste(self.mapSurface, self.mapOrigin)
 
             self.screen = ImageTk.PhotoImage(blackground)
             self.canvas.create_image(0, 0, image=self.screen, anchor=tk.NW)
-
-            #self.chosenUnit = ("Building", 1)
 
 
         def zoomOut(self, event = None):
@@ -176,20 +172,33 @@ class Villagepp(tk.Tk):
 
             if(self.TileSize != 1):
                 self.TileSize = self.TileSize//2
-                self.mapOrigin = (x0//2, y0//2)
-
                 self.resizeTileset()
-                self.redrawMapSurface()
+
+                (FrameWidth, FrameHeight) = self.screenSize
+                #zoomIn out to center of the screen
+                self.mapOrigin = (x0//2 + FrameWidth//4, y0//2 + FrameHeight//4)
+
+                self.screenTSize = ((FrameWidth + self.TileSize - 1)//self.TileSize, (FrameHeight + self.TileSize - 1)//self.TileSize)
+
+                self.mapSurface = Image.new("RGBA", (self.TileSize*AIV_SIZE, self.TileSize*AIV_SIZE), (0, 0, 0, 255))
+                self.redrawMapPartially((0,0), self.screenTSize)
                 self.updateMapScreen()
 
         def zoomIn(self, event = None):
             (x0, y0) = self.mapOrigin #in units of pixel
+            (FrameWidth, FrameHeight) = self.screenSize
 
             self.TileSize = self.TileSize*2
-            self.mapOrigin = (x0*2, y0*2)
-
             self.resizeTileset()
-            self.redrawMapSurface()
+
+            #zoomIn on center of the screen
+            self.mapOrigin = (x0*2 - FrameWidth//2, y0*2 - FrameHeight//2)
+
+            self.screenTSize = ((FrameWidth + self.TileSize - 1)//self.TileSize, (FrameHeight + self.TileSize - 1)//self.TileSize)
+
+
+            self.mapSurface = Image.new("RGBA", (self.TileSize*AIV_SIZE, self.TileSize*AIV_SIZE), (0, 0, 0, 255))
+            self.redrawMapPartially((0,0), self.screenTSize)
             self.updateMapScreen()
 
         def unchose(self, event):
@@ -205,11 +214,10 @@ class Villagepp(tk.Tk):
         def clickOnMap(self, event):
             x = event.x
             y = event.y
-            self.lastMousePosition = (x,y)
+            self.lastMousePosition = (x, y)
             if(self.chosenUnit != None):
                 kind = self.chosenUnit[0]
-                #(xTile, yTile) = self.mapCoords((x,y))
-                position = self.mapCoords((x,y))
+                position = self.mapCoords((x, y))
 
                 if(kind == "Building"):
                     buildingId = self.chosenUnit[1]
@@ -217,33 +225,38 @@ class Villagepp(tk.Tk):
 
                     if(self.parent.aiv.building_isplaceable(building, position)):
                         self.parent.aiv.building_place(building, position)
-                        self.drawBuildingOnMap(building, position)
+                        self.redrawMapPartially((x, y), building.mask_full().shape)
                 elif(kind == "Unit"):
                     unitId = self.chosenUnit[1]
                     self.parent.aiv.troop_place(unitId, position)
-                    self.drawUnitOnMap(position)
-                    #self.redrawMapSurface()
+                    self.redrawMapPartially((x, y), (1, 1))
                 elif(kind == "DeleteUnit"):
                     self.parent.aiv.troop_remove(position)
-                    self.redrawMapSurface()
+                    self.redrawMapPartially((x, y), (1, 1))
                 elif(kind == "DeleteBuilding"):
+                    (xDelete, yDelete) = position
+                    buildingId = self.parent.aiv.bmap_id[yDelete, xDelete]
+                    buildingId = aiv_enums.Building_Id(buildingId).name
+                    building = Building(buildingId)
                     self.parent.aiv.building_remove(position)
-                    #self.parent.update_slider()
-                    self.redrawMapSurface()
+
+                    (xSize, ySize) = building.mask_full().shape
+                    #increase size that is redrawn, since the mouse could also click on the lower right of the building
+                    self.redrawMapPartially((x - xSize*self.TileSize, y - ySize*self.TileSize), (2*xSize, 2*ySize))
                 elif(kind == "Wall-like"):
                     #TODO: on first click: save current position
                     #      on second click: build wall/whatevs from first position to current position
                     pass
-            
+
                 self.updateMapScreen()
 
         def dragStuff(self, event):
             x = event.x
             y = event.y
-            self.lastMousePosition = (x,y)
+            self.lastMousePosition = (x, y)
             if(self.chosenUnit != None):
                 shadow = None
-                (xTile, yTile) = self.mapCoords((x,y))
+                (xTile, yTile) = self.mapCoords((x, y))
                 kind = self.chosenUnit[0]
 
                 if(kind == "Building"):
@@ -305,14 +318,14 @@ class Villagepp(tk.Tk):
             self.updateMapScreen()
 
         def updateMapScreen(self):
-            self.screenSize = (self.frame_parent.winfo_width(), self.frame_parent.winfo_height())
+            FrameWidth = self.canvas.winfo_width()
+            FrameHeight = self.canvas.winfo_height()
+            self.screenTSize = ((FrameWidth + self.TileSize - 1)//self.TileSize, (FrameHeight + self.TileSize - 1)//self.TileSize)
+            self.screenSize = (FrameWidth, FrameHeight)
 
             self.screen = Image.new("RGBA", self.screenSize, (0, 0, 127, 255))
-
             self.screen.paste(self.mapSurface, self.mapOrigin)
 
-
-            self.screen.paste(self.mapSurface, self.mapOrigin)
             if(self.shadow != None):
                 (xTile, yTile) = self.mapCoords(self.lastMousePosition)
                 (x0, y0) = self.mapOrigin
@@ -335,12 +348,21 @@ class Villagepp(tk.Tk):
             y += moveY
             self.mapOrigin = (x, y)
 
+            (x0, y0) = self.mapOrigin #in units of pixel
+
+            self.redrawMapPartially((0,0), self.screenTSize)
+
             self.updateMapScreen()
 
             self.lastMousePosition = (event.x, event.y)
 
         def resizeFrame(self, event):
-            self.redrawMapSurface()
+            FrameWidth = self.canvas.winfo_width()
+            FrameHeight = self.canvas.winfo_height()
+            self.screenTSize = ((FrameWidth + self.TileSize - 1)//self.TileSize, (FrameHeight + self.TileSize - 1)//self.TileSize)
+            self.screenSize = (FrameWidth, FrameHeight)
+
+            self.redrawMapPartially(self.mapOrigin, self.screenTSize)
             self.updateMapScreen()
 
         def drawUnitOnMap(self, position):
@@ -356,14 +378,52 @@ class Villagepp(tk.Tk):
                         # newMapTile.show()
                         self.mapSurface.paste(newMapTile, (x*self.TileSize, y*self.TileSize))
 
-        def drawBuildingOnMap(self, building, position):
-            (x0, y0) = position
-            mask = building.mask_full()
-            (sizex, sizey) = mask.shape
+#        def drawBuildingOnMap(self, building, position):
+#            (x0, y0) = position
+#            mask = building.mask_full()
+#            (sizex, sizey) = mask.shape
+#
+#            namePositions = []
+#            for x in range(x0, x0+sizex):
+#                for y in range(y0, y0+sizey):
+#                    buildingId = self.parent.aiv.bmap_id[y, x]
+#                    buildingSurface = None
+#                    #grass
+#                    if(buildingId == aiv_enums.Building_Id.NOTHING):
+#                        buildingSurface = self.buildingTiles[buildingId][self.parent.aiv.gmap[y, x]]
+#                    #moat or pitch or any other tile that doesn't have an orientation - walls?
+#                    elif(buildingId < 30):
+#                        buildingSurface = self.buildingTiles[buildingId]
+#                    else:
+#                        buildingSurface = self.buildingTiles[buildingId][self.parent.aiv.bmap_tile[y, x]]
+#                    if(self.parent.aiv.bmap_step[y, x] >= self.parent.aiv.step_cur):
+#                        buildingSurface.putalpha(127)
+#                    self.mapSurface.paste(buildingSurface, (x*self.TileSize, y*self.TileSize))
+#                    if(self.parent.aiv.bmap_tile[y, x] == 1):
+#                        namePositions.append((x,y))
+#
+#                    troopId = self.parent.aiv.tmap[y, x]
+#                    if(troopId != 0):
+#                        troopTile = self.troopTiles[troopId]
+#
+#                        background = self.mapSurface.crop((x*self.TileSize, y*self.TileSize, (x+1)*self.TileSize, (y+1)*self.TileSize))
+#                        newMapTile = Image.alpha_composite(background, troopTile)
+#                        self.mapSurface.paste(newMapTile, (x*self.TileSize, y*self.TileSize))
+
+
+        def redrawMapPartially(self, origin, size):
+            (x0, y0) = self.mapCoords(origin)
+            (sizex, sizey) = size
+
+            x0 = max(0, x0)
+            y0 = max(0, y0)
+
+            xMax = min(x0+sizex, AIV_SIZE)
+            yMax = min(y0+sizey, AIV_SIZE)
 
             namePositions = []
-            for x in range(x0, x0+sizex):
-                for y in range(y0, y0+sizey):
+            for x in range(x0, xMax):
+                for y in range(y0, yMax):
                     buildingId = self.parent.aiv.bmap_id[y, x]
                     buildingSurface = None
                     #grass
@@ -390,14 +450,6 @@ class Villagepp(tk.Tk):
 
 
         def redrawMapSurface(self): #redraws the map-surface, but not the screen
-
-            #xTiles = int((self.map.winfo_width() + self.TileSize/2)/self.TileSize)
-            #yTiles = int((self.map.winfo_height() + self.TileSize/2)/self.TileSize)
-
-            #(xPixelOrigin, yPixelOrigin) = self.mapOrigin
-            #xTilesOrigin = xPixelOrigin//self.TileSize
-            #yTilesOrigin = yPixelOrigin//self.TileSize
-
             self.mapSurface = Image.new("RGBA", (self.TileSize*AIV_SIZE, self.TileSize*AIV_SIZE), (0, 0, 0, 255))
             namePositions = []
             for x in range(0, AIV_SIZE): 
