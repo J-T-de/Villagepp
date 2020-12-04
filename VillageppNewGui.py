@@ -172,36 +172,21 @@ class Villagepp(tk.Tk):
 
 
         def zoomOut(self, event = None):
-
             (x0, y0) = self.mapOrigin #in units of pixel
 
-            x0T = x0/self.TileSize # in units of tiles*pixel
-            y0T = y0/self.TileSize
+            if(self.TileSize != 1):
+                self.TileSize = self.TileSize//2
+                self.mapOrigin = (x0//2, y0//2)
 
-            self.TileSize = self.TileSize - 1
-
-            x0N = int(x0T*self.TileSize)
-            y0N = int(y0T*self.TileSize)
-
-            self.mapOrigin = (x0N, y0N)
-
-            self.resizeTileset()
-            self.redrawMapSurface()
-            self.updateMapScreen()
+                self.resizeTileset()
+                self.redrawMapSurface()
+                self.updateMapScreen()
 
         def zoomIn(self, event = None):
-
             (x0, y0) = self.mapOrigin #in units of pixel
 
-            x0T = x0/self.TileSize # in units of tiles*pixel
-            y0T = y0/self.TileSize
-
-            self.TileSize = self.TileSize + 1
-
-            x0N = int(x0T*self.TileSize)
-            y0N = int(y0T*self.TileSize)
-
-            self.mapOrigin = (x0N, y0N)
+            self.TileSize = self.TileSize*2
+            self.mapOrigin = (x0*2, y0*2)
 
             self.resizeTileset()
             self.redrawMapSurface()
