@@ -251,7 +251,6 @@ class Villagepp(tk.Tk):
 
                 if(kind == "Building"):
                     buildingId = self.chosenUnit[1]
-                    #building = Building(buildingId)
                     building = Building(buildingId)
                     mask = building.mask_full()
                     (sizex, sizey) = mask.shape
@@ -307,9 +306,8 @@ class Villagepp(tk.Tk):
             self.mapOrigin = (x, y)
 
             self.updateMapScreen()
-            
 
-        def assembleScreen(self):
+        def updateMapScreen(self):
             self.screenSize = (self.frame_parent.winfo_width(), self.frame_parent.winfo_height())
 
             self.screen = Image.new("RGBA", self.screenSize, (0, 0, 127, 255))
@@ -329,16 +327,6 @@ class Villagepp(tk.Tk):
             self.screen = ImageTk.PhotoImage(self.screen)
 
             self.canvas.create_image(0, 0, image=self.screen, anchor=tk.NW)
-
-        def updateMapScreen(self):
-            self.assembleScreen()
-            #self.screenSize = (self.frame_parent.winfo_width(), self.frame_parent.winfo_height())
-
-            #blackground = Image.new("RGB", self.screenSize, (0, 0, 0))
-            #blackground.paste(self.mapSurface, self.mapOrigin)
-
-            #self.screen = ImageTk.PhotoImage(blackground)
-            #self.canvas.create_image(0, 0, image=self.screen, anchor=tk.NW)
 
         def moveMap(self, event):
             (x,y) = self.lastMousePosition
@@ -395,6 +383,14 @@ class Villagepp(tk.Tk):
                     if(self.parent.aiv.bmap_tile[y, x] == 1):
                         namePositions.append((x,y))
 
+                    troopId = self.parent.aiv.tmap[y, x]
+                    if(troopId != 0):
+                        troopTile = self.troopTiles[troopId]
+
+                        background = self.mapSurface.crop((x*self.TileSize, y*self.TileSize, (x+1)*self.TileSize, (y+1)*self.TileSize))
+                        newMapTile = Image.alpha_composite(background, troopTile)
+                        self.mapSurface.paste(newMapTile, (x*self.TileSize, y*self.TileSize))
+
 
         def redrawMapSurface(self): #redraws the map-surface, but not the screen
 
@@ -424,6 +420,15 @@ class Villagepp(tk.Tk):
                     self.mapSurface.paste(buildingSurface, (x*self.TileSize, y*self.TileSize))
                     if(self.parent.aiv.bmap_tile[y, x] == 1):
                         namePositions.append((x,y))
+
+                    #draw troops "above" buildings
+                    troopId = self.parent.aiv.tmap[y, x]
+                    if(troopId != 0):
+                        troopTile = self.troopTiles[troopId]
+
+                        background = self.mapSurface.crop((x*self.TileSize, y*self.TileSize, (x+1)*self.TileSize, (y+1)*self.TileSize))
+                        newMapTile = Image.alpha_composite(background, troopTile)
+                        self.mapSurface.paste(newMapTile, (x*self.TileSize, y*self.TileSize))
         #        for pos in namePositions:
         #            (x, y) = pos
         #            size = self.parent.aiv.bmap_size[y, x]
@@ -446,16 +451,6 @@ class Villagepp(tk.Tk):
         #            #draw text to image
         #            d.text(((self.TileSize*size)//2, (self.TileSize*size)//2), str(aiv_enums.Building_Id(self.parent.aiv.bmap_id[y, x]).name), fill="black", anchor="mm", font=font)
         #            self.mapSurface.paste(txt, (x*self.TileSize, y*self.TileSize))
-            for x in range(0, AIV_SIZE):
-                for y in range(0, AIV_SIZE):
-                    troopId = self.parent.aiv.tmap[y, x]
-                    if(troopId != 0):
-                        troopTile = self.troopTiles[troopId]
-
-                        background = self.mapSurface.crop((x*self.TileSize, y*self.TileSize, (x+1)*self.TileSize, (y+1)*self.TileSize))
-                        newMapTile = Image.alpha_composite(background, troopTile)
-                        # newMapTile.show()
-                        self.mapSurface.paste(newMapTile, (x*self.TileSize, y*self.TileSize))
 
         def getInputTile(self, x, y, inputBMP):
             originOffset = 1 #first tile offset in x/y-direction
