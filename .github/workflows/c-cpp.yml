@@ -40,7 +40,7 @@ jobs:
       with:
         name: compressionlib-binaries
         path: |
-          compressionlib-${{ matrix.os }}-${{ matrix.platform }}.dll
+          compression\\bin\\compressionlib-${{ matrix.os }}-${{ matrix.platform }}.dll
 
     - name: archive unix-like
       uses: actions/upload-artifact@v2
@@ -48,4 +48,4 @@ jobs:
       with:
         name: compressionlib-binaries
         path: |
-          compressionlib-${{ matrix.os }}-${{ matrix.platform }}.so
+          compression\\bin\\compressionlib-${{ matrix.os }}-${{ matrix.platform }}.so
