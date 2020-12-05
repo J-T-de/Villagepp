@@ -1,12 +1,12 @@
+from sys import exit
+
 import tkinter as tk
 import tkinter.filedialog as fd
 import tkinter.messagebox as mb
 
-from sys import exit
 from PIL import ImageFont, ImageDraw, ImageTk, Image
 
-from aiv import Aiv, AIV_SIZE, Building
-import aiv_enums
+from aiv import Aiv, AIV_SIZE, Building, BuildingId, TroopId
 
 # TODO: settings.json
 
@@ -30,8 +30,7 @@ class Villagepp(tk.Tk):
         tk.Tk.__init__(self)
 
         self.aiv_path = None
-        self.aiv = Aiv("res/pig8.aiv")
-        # self.aiv = Aiv()
+        self.aiv = Aiv()
 
         self.geometry("640x480")
         self.wm_title("Village++")
@@ -61,7 +60,6 @@ class Villagepp(tk.Tk):
         self.grid_rowconfigure(0, weight = 1)
         self.grid_rowconfigure(1, weight = 1)
         self.grid_rowconfigure(2, weight = 3)
-        
 
         # all bindings
         self.bind()
@@ -126,14 +124,14 @@ class Villagepp(tk.Tk):
 
             help_menu.add_command(label = "About...",               command = parent.about)
 
-    class Map(tk.Frame):    # class(MatthiasIstSchuld(JuliusIstSchuld))
+    class Map(tk.Frame):
         def __init__(self, frame_parent, parent):
             tk.Frame.__init__(self, frame_parent)
 
             self.canvas = tk.Canvas(frame_parent)
 
             self.parent = parent
-            self.frame_parent = frame_parent #please don't hurt me
+            self.frame_parent = frame_parent
 
             self.canvas.grid(row = 0, column = 0, sticky = "nsew")
             frame_parent.columnconfigure(0, weight = 1)
@@ -236,7 +234,7 @@ class Villagepp(tk.Tk):
                 elif(kind == "DeleteBuilding"):
                     (xDelete, yDelete) = position
                     buildingId = self.parent.aiv.bmap_id[yDelete, xDelete]
-                    buildingId = aiv_enums.Building_Id(buildingId).name
+                    buildingId = BuildingId(buildingId).name
                     building = Building(buildingId)
                     self.parent.aiv.building_remove(position)
 
@@ -389,7 +387,7 @@ class Villagepp(tk.Tk):
 #                    buildingId = self.parent.aiv.bmap_id[y, x]
 #                    buildingSurface = None
 #                    #grass
-#                    if(buildingId == aiv_enums.Building_Id.NOTHING):
+#                    if(buildingId == BuildingId.NOTHING):
 #                        buildingSurface = self.buildingTiles[buildingId][self.parent.aiv.gmap[y, x]]
 #                    #moat or pitch or any other tile that doesn't have an orientation - walls?
 #                    elif(buildingId < 30):
@@ -427,7 +425,7 @@ class Villagepp(tk.Tk):
                     buildingId = self.parent.aiv.bmap_id[y, x]
                     buildingSurface = None
                     #grass
-                    if(buildingId == aiv_enums.Building_Id.NOTHING):
+                    if(buildingId == BuildingId.NOTHING):
                         buildingSurface = self.buildingTiles[buildingId][self.parent.aiv.gmap[y, x]]
                     #moat or pitch or any other tile that doesn't have an orientation - walls?
                     elif(buildingId < 30):
@@ -457,7 +455,7 @@ class Villagepp(tk.Tk):
                     buildingId = self.parent.aiv.bmap_id[y, x]
                     buildingSurface = None
                     #grass
-                    if(buildingId == aiv_enums.Building_Id.NOTHING):
+                    if(buildingId == BuildingId.NOTHING):
                         buildingSurface = self.buildingTiles[buildingId][self.parent.aiv.gmap[y, x]]
                     #moat or pitch or any other tile that doesn't have an orientation - walls?
                     elif(buildingId < 30):
@@ -498,7 +496,7 @@ class Villagepp(tk.Tk):
         #            #get a drawing context from blank image
         #            d = ImageDraw.Draw(txt)
         #            #draw text to image
-        #            d.text(((self.TileSize*size)//2, (self.TileSize*size)//2), str(aiv_enums.Building_Id(self.parent.aiv.bmap_id[y, x]).name), fill="black", anchor="mm", font=font)
+        #            d.text(((self.TileSize*size)//2, (self.TileSize*size)//2), str(BuildingId(self.parent.aiv.bmap_id[y, x]).name), fill="black", anchor="mm", font=font)
         #            self.mapSurface.paste(txt, (x*self.TileSize, y*self.TileSize))
 
         def getInputTile(self, x, y, inputBMP):
@@ -530,45 +528,45 @@ class Villagepp(tk.Tk):
         def loadTileset(self, path):
             rawBMP = Image.open(path)
             rawBMP.putalpha(255)
-            for elem in aiv_enums.Building_Id:
+            for elem in BuildingId:
                 imageList = []
                 # grass
-                if(elem.value == aiv_enums.Building_Id.NOTHING):
+                if(elem.value == BuildingId.NOTHING):
                     for variation in range(0, 8):
                         imageList.append(self.getInputTile(8, variation, rawBMP))
                 # border
-                elif(elem.value == aiv_enums.Building_Id.BORDER_TILE):
+                elif(elem.value == BuildingId.BORDER_TILE):
                     imageList = self.getInputTile(9, 9, rawBMP)
                 # auto
-                elif(elem.value == aiv_enums.Building_Id.AUTO):
+                elif(elem.value == BuildingId.AUTO):
                     imageList = self.getInputTile(9, 8, rawBMP)
                 # walls    
-                elif(elem.value == aiv_enums.Building_Id.HIGH_WALL):
+                elif(elem.value == BuildingId.HIGH_WALL):
                     imageList = self.getInputTile(0, 9, rawBMP)
-                elif(elem.value == aiv_enums.Building_Id.LOW_WALL):
+                elif(elem.value == BuildingId.LOW_WALL):
                     imageList = self.getInputTile(1, 9, rawBMP)
-                elif(elem.value == aiv_enums.Building_Id.HIGH_CRENEL):
+                elif(elem.value == BuildingId.HIGH_CRENEL):
                     imageList = self.getInputTile(0, 0, rawBMP)
-                elif(elem.value == aiv_enums.Building_Id.LOW_CRENEL):
+                elif(elem.value == BuildingId.LOW_CRENEL):
                     imageList = self.getInputTile(1, 0, rawBMP)
                 #stairs
-                elif(elem.value == aiv_enums.Building_Id.STAIRS_1):
+                elif(elem.value == BuildingId.STAIRS_1):
                     imageList = self.getInputTile(9, 0, rawBMP)
-                elif(elem.value == aiv_enums.Building_Id.STAIRS_2):
+                elif(elem.value == BuildingId.STAIRS_2):
                     imageList = self.getInputTile(9, 1, rawBMP)
-                elif(elem.value == aiv_enums.Building_Id.STAIRS_3):
+                elif(elem.value == BuildingId.STAIRS_3):
                     imageList = self.getInputTile(9, 2, rawBMP)
-                elif(elem.value == aiv_enums.Building_Id.STAIRS_4):
+                elif(elem.value == BuildingId.STAIRS_4):
                     imageList = self.getInputTile(9, 3, rawBMP)
-                elif(elem.value == aiv_enums.Building_Id.STAIRS_5):
+                elif(elem.value == BuildingId.STAIRS_5):
                     imageList = self.getInputTile(9, 4, rawBMP)
-                elif(elem.value == aiv_enums.Building_Id.STAIRS_6):
+                elif(elem.value == BuildingId.STAIRS_6):
                     imageList = self.getInputTile(9, 5, rawBMP)
                 # moat
-                elif(elem.value == aiv_enums.Building_Id.MOAT):
+                elif(elem.value == BuildingId.MOAT):
                     imageList = self.getInputTile(8, 8, rawBMP)
                 # pitch
-                elif(elem.value == aiv_enums.Building_Id.PITCH):
+                elif(elem.value == BuildingId.PITCH):
                     imageList = self.getInputTile(8, 9, rawBMP)
                 # else
                 else:
@@ -577,7 +575,7 @@ class Villagepp(tk.Tk):
                         imageList.append(self.getInputTile(elem.value//10 - 3, variation, rawBMP))
                 self.buildingTiles.update({elem.value : imageList})
             
-            for elem in aiv_enums.Troop_Id:
+            for elem in TroopId:
                 #blank image for text, transparent
                 txt = Image.new("RGBA", (self.TileSize, self.TileSize), (255, 0, 0, 255))
                 #get a font
@@ -659,7 +657,7 @@ class Villagepp(tk.Tk):
                         if idx == 0:
                             tk.Button(frame_parent, text = "DELETE",    command = lambda: self.set_delete_unit()).grid(row = 0, column = 0, sticky="nsew")
                         else:
-                            enum = aiv_enums.Troop_Id(idx)
+                            enum = TroopId(idx)
                             tk.Button(frame_parent, text = enum.name,   command = lambda l = enum.value: self.set_unit(l)).grid(row = r, column = c, sticky="nsew")
 
             elif category == "Mo":
@@ -691,7 +689,7 @@ class Villagepp(tk.Tk):
 
                 for r in range(0,10):
                     try:
-                        enum = aiv_enums.Building_Id(base+r)
+                        enum = BuildingId(base+r)
                         tk.Button(frame_parent, text = enum.name, command = lambda l = enum.name: self.set_building(l)).grid(row = r, column = 0, sticky = "nsew", columnspan = 2)
                     except:
                         tk.Button(frame_parent, text = "", command = exit).grid(row = r, column = 0, sticky="nsew", columnspan = 2)
