@@ -31,9 +31,6 @@ jobs:
         chmod +x compile.sh
         ./compile.sh
         mv compressionlib.so ../bin/compressionlib-${{ matrix.os }}-${{ matrix.platform }}.so
-        cd ..
-        ls
-        ls bin
       shell: bash
       if: matrix.os == 'ubuntu-latest' || matrix.os == 'macOS-latest'
 
@@ -51,4 +48,4 @@ jobs:
       with:
         name: compressionlib-binaries
         path: |
-          ..\\bin\\compressionlib-${{ matrix.os }}-${{ matrix.platform }}.so
+          compression\\bin\\compressionlib-${{ matrix.os }}-${{ matrix.platform }}.so
