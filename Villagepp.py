@@ -9,11 +9,9 @@ from PIL import ImageFont, ImageDraw, ImageTk, Image
 from aiv import Aiv, AIV_SIZE, Building, BuildingId, TroopId
 
 # TODO: settings.json
-
 lang = "en"
 
 # TODO: language data
-
 lang_data = {
     "File": {
         "en": "File",
@@ -25,6 +23,7 @@ lang_data = {
     }
 }
 
+
 class Villagepp(tk.Tk):
     def __init__(self, master = None):
         tk.Tk.__init__(self)
@@ -34,7 +33,7 @@ class Villagepp(tk.Tk):
 
         self.geometry("640x480")
         self.wm_title("Village++")
-        self.iconphoto(False, tk.PhotoImage(file="res/logo_supreme.png"))
+        self.iconphoto(False, tk.PhotoImage(file="res/logo.png"))
 
         self.frame_map       = tk.Frame(self, background = "pink")
         self.frame_navbar    = tk.Frame(self, background = "blue")
@@ -70,7 +69,7 @@ class Villagepp(tk.Tk):
         self.bind_all("<Control-o>",        self.open)
         self.bind_all("<Control-s>",        self.save)
         self.bind_all("<Control-Shift-s>",  self.save_as)
-        self.bind_all("<Control-Shift-e>",  self.export)
+        # self.bind_all("<Control-Shift-e>",  self.export)
         self.bind_all("<Control-plus>",     self.map.zoomIn)
         self.bind_all("<Control-minus>",    self.map.zoomOut)
 
@@ -107,7 +106,10 @@ class Villagepp(tk.Tk):
             file_menu.add_command(label = "Save",                   command = parent.save,    accelerator = "Ctrl+S")
             file_menu.add_command(label = "Save as...",             command = parent.save_as, accelerator = "Ctrl+Shift+S")
             file_menu.add_separator()
-            file_menu.add_command(label = "Export...",              command = parent.export,  accelerator = "Ctrl+Shift+E")
+            # TODO: Export Menu
+            file_menu.add_command(label = "Export Preview...",      command = parent.export_preview)
+            file_menu.add_command(label = "Export Full...",         command = parent.export_full)
+
             file_menu.add_separator()
             file_menu.add_command(label= "Exit",                    command = exit)
             
@@ -756,19 +758,20 @@ class Villagepp(tk.Tk):
         else:
             self.aiv.save(aiv_path)
 
-    def export(self, e = None):
-        # save = mb.askyesno("Village++", "Do you want to export a preview?")
+    def export_preview(self, e = None):
+        save = mb.askyesno("Village++", "Do you want to export a preview?")
 
-        # if save == True:
-        #     preview_path = fd.asksaveasfilename()
-        #     if preview_path == None:
-        #         return
-        #     else:
-        #         self.aiv.save_preview(preview_path)
-        # else:
-        #     return
+        if save == True:
+            preview_path = fd.asksaveasfilename()
+            if preview_path == None:
+                return
+            else:
+                self.aiv.save_preview(preview_path)
+        else:
+            return
     
-        save = mb.askyesno("Village++", "Do you want to export PICTURE?")
+    def export_full(self, e = None):
+        save = mb.askyesno("Village++", "Do you want to export an image of the full map?")
 
         if save == True:
             image_path = fd.asksaveasfilename()
@@ -809,6 +812,7 @@ class Villagepp(tk.Tk):
             self.map.updateMapScreen()
             return
         self.navbar = self.Navbar(self.frame_navbar, self)
+
 
 if __name__ == "__main__":
     vpp = Villagepp()
