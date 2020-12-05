@@ -1,746 +1,817 @@
-#TODO:
-#lvl1
-#rework buttons/menus
-#lvl1.5
-#build nice menus - nice text, arrangement and sorting - boxes + highlighting of buttons
-#improve drawing-performance: implement 2D culling - add .convert to surfaces
-#lvl2
-#dateien variabel einlesen
-#different resolutions
+import tkinter as tk
+import tkinter.filedialog as fd
+import tkinter.messagebox as mb
 
-#"bugs":
-#'make' map draggable even when mouse is not above map-screen any more (i.e. when above menu)
-#make other building-buttons clickable even when a building is already chosen (check for button when action==drag_sth and then set action to choosing)
-#make troops semi-transparent
-#make america great again
+from sys import exit
+from PIL import ImageFont, ImageDraw, ImageTk, Image
 
-import pygame as pg
-import aiv
+from aiv import Aiv, AIV_SIZE, Building
 import aiv_enums
-from enum import IntEnum
-import sys
 
-debug = True
-def dbgPrint(text):
-    if(debug == True):
-        print(text)
+# TODO: settings.json
+
+lang = "en"
+
+# TODO: language data
+
+lang_data = {
+    "File": {
+        "en": "File",
+        "de": "Datei"},
+
+    "New": {
+        "en": "New",
+        "de": "Neu"
+    }
+}
+
+class Villagepp(tk.Tk):
+    def __init__(self, master = None):
+        tk.Tk.__init__(self)
+
+        self.aiv_path = None
+        self.aiv = Aiv("res/pig8.aiv")
+        # self.aiv = Aiv()
+
+        self.geometry("640x480")
+        self.wm_title("Village++")
+        self.iconphoto(False, tk.PhotoImage(file="res/logo_supreme.png"))
+
+        self.frame_map       = tk.Frame(self, background = "pink")
+        self.frame_navbar    = tk.Frame(self, background = "blue")
+        self.frame_category  = tk.Frame(self, background = "red")
+        self.frame_menu      = tk.Frame(self, background = "green")
+
+        # populate widgets in frame
+        self.map        = self.Map      (self.frame_map,     self)
+        self.navbar     = self.Navbar   (self.frame_navbar,  self)
+        self.category   = self.Category (self.frame_category,self)
+        self.menu       = self.Menu     (self.frame_menu,    self, "Mi") 
         
-class Action(IntEnum):
-    NO_ACTION = 0
-    CHOOSING = 1
-    DRAG_STH = 2
-    DRAG_MAP = 3
-    BUILD_RANGE = 4 #wall. can that be made without an extra state?
-    DELETE = 5
-    LOAD_FILE_DIALOGUE = 6
-    SAVE_FILE_DIALOGUE = 7
-    STEPS = 8
-
-class MenuType(IntEnum):
-    building = 0
-    troop = 1
-    menu = 2
-    delete = 3
-    load = 4
-    save = 5
-    steps = 6
+        self.menubar    = self.Menubar(self)
     
-class submenu:
-    #list of buttons and type
-    #geometric information is handled by the menu
-    def __init__(self, buttonList, menutype, geometry, offset, btnsize, font):
-        self.buttons = buttonList
-        self.type = menutype #MenuType enum either building, troop or menu
-        (self.width, self.height) = geometry    #geometry in amount of buttons
-        self.offset = offset        #offset in pixels
-        self.btnsize = btnsize
-        self.font = font
-        if(self.width*self.height != len(self.buttons)):
-            sys.exit("Cheap variant of a compile-time error: The amount of buttons expected for the geometry is not the same as given in the buttonList")
-    
-    def drawSubmenu(self):
-        surface = pg.Surface((self.width*self.btnsize[0], self.height*self.btnsize[1]))
-        for x in range(self.width):
-            for y in range(self.height):
-                #textSurface, rect = self.font.render(self.buttons[x + y*self.width], (255, 255, 255))
-                textSurface = self.font.render(str(self.buttons[x + y*self.width]), True, (255, 255, 255))
-                surface.blit(textSurface, (x*self.btnsize[0], y*self.btnsize[1]))
-        return surface
+        # define grid
+        self.frame_map      .grid(row = 0, column = 0, sticky="nsew", rowspan = 3)
+        self.frame_navbar   .grid(row = 0, column = 1, sticky="nsew")
+        self.frame_category .grid(row = 1, column = 1, sticky="nsew")
+        self.frame_menu     .grid(row = 2, column = 1, sticky="nsew")
 
-    def equalSubmenu(self, otherSubmenu):
-        if(self.width != otherSubmenu.width or self.height != otherSubmenu.height):
-            return False
-        if(self.offset != otherSubmenu.offset):
-            return False
-        if(self.type != otherSubmenu.type):
-            return False
-        for x in range(self.width):
-            for y in range(self.height):
-                if(self.buttons[x + y*self.width] != otherSubmenu.buttons[x + y*self.width]):
-                    return False
-        return True
-    
-class editor:
-    def __init__(self):
-        #HARDCODE >>EVERYTHING<<
-        self.aivLogic = aiv.Aiv()
+        self.grid_columnconfigure(0, weight = 3)
+        self.grid_columnconfigure(1, weight = 2)
+        self.grid_rowconfigure(0, weight = 1)
+        self.grid_rowconfigure(1, weight = 1)
+        self.grid_rowconfigure(2, weight = 3)
         
-        self.TILE_SIZE = 32
-        self.BUTTON_SIZE = (100, 50)
-        
-        self.screenWidth = 800
-        self.screenHeight = 600
-        
-        pg.init()
-        #meep. freetype unter ubuntu gerade nicht verfügbar. hoffentlich funktioniert das austauschbar mit pg.font
-        #self.sysfont = pg.freetype.SysFont("Shia LaBeouf.ttf", 24)
-        pg.font.init()
-        self.sysfont = pg.font.SysFont("Shia LaBeouf.ttf", 10)
-        self.dbgFont = pg.font.SysFont("Shia LaBeouf.ttf", 15)
-        self.troopFont = pg.font.SysFont("Shia LaBeouf.ttf", 20)
-        self.buildingNameFont = pg.font.SysFont("Shia LaBeouf.ttf", 20)
-        self.submenufont = pg.font.SysFont("Shia LaBeouf.ttf", 20)
-        self.gameDisplay = pg.display
-        #self.gameDisplay = pg.display.set_mode((self.screenWidth, self.screenHeight))
-        self.gameDisplay.set_mode((self.screenWidth, self.screenHeight))
-        self.gameDisplay.set_caption('Village++')
-        logo = pg.image.load("res/logo_supreme.bmp")
-        self.gameDisplay.set_icon(logo)
-        self.screen = self.gameDisplay.get_surface()
-        
-        #display stuff
-        #assuming screenWidth > screenHeight. otherwise... well. TODO - schwarze streifen am rand. das ist ne gute idee
-        self.mapScreen = pg.Surface((self.screenHeight, self.screenHeight))
-        self.menuSize = (self.screenWidth - self.screenHeight, self.screenHeight)
-        self.menuOffset = (self.screenWidth - self.menuSize[0], 0)
-        self.menuScreen = pg.Surface(self.menuSize)
-        
-        #map internal stuff
-        self.zoomLevel = 1 #err... well... was für zoom-level gibt es? TODO
-        self.mapSurface = pg.Surface((self.TILE_SIZE*aiv.AIV_SIZE*self.zoomLevel, self.TILE_SIZE*aiv.AIV_SIZE*self.zoomLevel))
-        self.mapXOffset = 0
-        self.mapYOffset = 0
-        #self.buildingSurfaces = self.loadSurfaces("")#surfaces/tiles ordered by id
 
-        #load surfaces from single file or several files?
-        self.buildingSurfaces = {} #dictionary, building/troop-id as key, corresponding building-surface as value
-        self.troopSurfaces = {}
-        self.loadSurfaces("res/tiles.bmp")
-        
-        #mix of map and action-stuff
-        self.dragSurface = None
-        self.chosenBuilding = None
-        self.mousePosition = None
-        
-        #menu internal stuff
-        self.chosenButton = None
-        
-        #menu-initializer:
-        #yo, draw me some of that good stuff
+        # all bindings
+        self.bind()
 
-        fixedBuildMenuOffset = (0,0) #aligned to upper left
-        fixedBuildMenuTiles = (4,3)
-        fixedBuildMenuTileSizes = (self.menuSize[0]//fixedBuildMenuTiles[0], 40) #squeezed in x-direction s.t. all buttons fit in fixedMenuBuildTiles[1] rows, 40 pixels height
+    def bind(self):
+        # global menubar
+        self.bind_all("<Control-n>",        self.new)
+        self.bind_all("<Control-o>",        self.open)
+        self.bind_all("<Control-s>",        self.save)
+        self.bind_all("<Control-Shift-s>",  self.save_as)
+        self.bind_all("<Control-Shift-e>",  self.export)
+        self.bind_all("<Control-plus>",     self.map.zoomIn)
+        self.bind_all("<Control-minus>",    self.map.zoomOut)
 
-        varMenuOffset = (0, fixedBuildMenuTiles[1]*fixedBuildMenuTileSizes[1] + 40)
+        # global map
+        self.bind_all("<q>",            self.step_prev)
+        self.bind_all("<e>",            self.step_next)
+        self.bind_all("<w>",            self.map.move_north)
+        self.bind_all("<a>",            self.map.move_west)
+        self.bind_all("<s>",            self.map.move_south)
+        self.bind_all("<d>",            self.map.move_east)
+        self.bind_all("<Control-q>",    self.step_first)
+        self.bind_all("<Control-e>",    self.step_last)
 
-        buildMenuBtns = ["Walls","MoatsNPitch","Castles","Gatehouse","WeaponsNTroops","Industry","Food","Town","GoodStuff","BadStuff"]
-        
-        WallBtns = ["HIGH_WALL", "LOW_WALL", "LOW_CRENEL", "HIGH_CRENEL", "STAIRS_1", "STAIRS_2", "STAIRS_3", "STAIRS_4", "STAIRS_5", "STAIRS_6"]
-        MoatsNPitchBtns = ["MOAT", "PITCH"]
-        CastlesBtns = ["TOWER_1", "TOWER_2", "TOWER_3", "TOWER_4", "TOWER_5", "OIL_SMELTER", "DOG_CAGE", "KILLING_PIT", "KEEP", "MERCENARY_POST"]
-        GatehouseBtns = ["SMALL_GATEHOUSE_EW", "SMALL_GATEHOUSE_NS", "LARGE_GATEHOUSE_EW", "LARGE_GATEHOUSE_NS", "DRAWBRIDGE"]
-        WeaponsNTroopsBtns = ["POLETURNER", "FLETCHER", "BLACKSMITH", "TANNER", "ARMOURER", "BARRACKS", "ARMOURY", "ENGINEERS_GUILD", "TUNNELORS_GUILD", "STABLES"]
-        IndustryBtns = ["STOCKPILE", "WOODCUTTER", "QUARRY", "OX_TETHER", "IRON_MINE", "PITCH_RIG", "TRADING_POST"]
-        FoodBtns = ["GRANARY", "APPLE_FARM", "DAIRY_FARM", "WHEAT_FARM", "HUNTER", "HOPS_FARM", "WIND_MILL", "BAKERY", "BREWERY", "INN"]
-        TownBtns = ["HOUSE", "CHAPEL", "CHURCH", "CATHEDRAL", "HEALERS", "WELL", "WATER_POT"]
-        GoodStuffBtns = ["MAYPOLE", "DANCING_BEAR", "STATUE", "SHRINE", "TOWN_GARDEN", "COMMUNAL_GARDEN", "SMALL_POND", "LARGE_POND"]
-        BadStuffBtns = ["GALLOWS", "CESS_PIT", "STOCKS", "BURNING_STAKE", "DUNGEON", "RACK", "GIBBET", "CHOPPING_BLOCK", "DUNKING_STOOL"]
+        # on map
+        self.map.canvas.bind("<Button-1>",      self.map.clickOnMap)
+        self.map.canvas.bind("<B1-Motion>",     self.map.moveMap)
+        self.map.canvas.bind("<Button-3>",      self.map.unchose)
+        self.map.canvas.bind("<c>",             self.map.zoomIn)
+        self.map.canvas.bind("<d>",             self.map.zoomOut)
+        self.map.canvas.bind("<Configure>",     self.map.resizeFrame)
+        self.map.canvas.bind("<Motion>",        self.map.dragStuff)
 
-        buildMenus =    [submenu(WallBtns, MenuType.building, (2,5), varMenuOffset, self.BUTTON_SIZE, self.submenufont),
-                        submenu(MoatsNPitchBtns, MenuType.building, (1, 2), varMenuOffset, self.BUTTON_SIZE, self.submenufont),
-                        submenu(CastlesBtns, MenuType.building, (2, 5), varMenuOffset, self.BUTTON_SIZE, self.submenufont),
-                        submenu(GatehouseBtns, MenuType.building, (1, 5), varMenuOffset, self.BUTTON_SIZE, self.submenufont),
-                        submenu(WeaponsNTroopsBtns, MenuType.building, (2, 5), varMenuOffset, self.BUTTON_SIZE, self.submenufont),
-                        submenu(IndustryBtns, MenuType.building, (1, 7), varMenuOffset, self.BUTTON_SIZE, self.submenufont),
-                        submenu(FoodBtns, MenuType.building, (2, 5), varMenuOffset, self.BUTTON_SIZE, self.submenufont),
-                        submenu(TownBtns, MenuType.building, (1, 7), varMenuOffset, self.BUTTON_SIZE, self.submenufont),
-                        submenu(GoodStuffBtns, MenuType.building, (2, 4), varMenuOffset, self.BUTTON_SIZE, self.submenufont),
-                        submenu(BadStuffBtns, MenuType.building, (1, 9), varMenuOffset, self.BUTTON_SIZE, self.submenufont)]
+    class Menubar(tk.Frame):
+        def __init__(self, parent):
+            menubar = tk.Menu(parent)
+            parent.config(menu = menubar)
 
+            # file menu
+            file_menu = tk.Menu(menubar, tearoff = 0)
+            menubar.add_cascade(label=lang_data["File"][lang], menu = file_menu)
 
-        troopMenuBtns = ["TROOPS"]
-
-        TroopBtns = ["OIL", "MANGONEL", "BALISTA", "TREBUCHET", "F_BALLISTA", "ARCHER", "XBOW", "SPR", "PIK", "MAC", "SWD", "KGT", "SLV", "SLR", "ASS", "SBW", "HBW", "SCM", "GRE", "BRZ", "FLG"]
-
-        troopMenus =    [submenu(TroopBtns, MenuType.troop, (3, 7), varMenuOffset, self.BUTTON_SIZE, self.submenufont)]
-
-
-        deleteMenuBtns = ["REMOVE"]
-
-        deleteBtns = ["REMOVE_BUILDING", "REMOVE_TROOP"]
-
-        deleteMenu =    [submenu(deleteBtns, MenuType.delete, (2,1), varMenuOffset, self.BUTTON_SIZE, self.submenufont)]
-                        
-
-        fixedBuildMenuKeys = buildMenuBtns + troopMenuBtns + deleteMenuBtns
-        fixedBuildMenuValues = buildMenus + troopMenus + deleteMenu
-
-
-        fixedBuildMenu = submenu(fixedBuildMenuKeys, MenuType.menu, fixedBuildMenuTiles, fixedBuildMenuOffset, fixedBuildMenuTileSizes, self.submenufont)
-
-        #specialMenuBtns = ["LOAD", "SAVE", "REMOVE", "STEPS"]
-        specialMenuBtns = ["LOAD", "SAVE", "STEPS"]
-
-        stepBtns = ["BACKWARD", "FORWARD"]
-
-        specialMenuTiles = (3,1)
-        specialMenuTileSizes = (self.menuSize[0]//specialMenuTiles[0], 40)
-        specialMenuOffset = (0, self.screenHeight - specialMenuTileSizes[1]*specialMenuTiles[1]) #aligned to lower left
-
-        specialMenus =  [submenu(["LOAD"], MenuType.load, (1,1), varMenuOffset, self.BUTTON_SIZE, self.submenufont),
-                        submenu(["SAVE"], MenuType.save, (1,1), varMenuOffset, self.BUTTON_SIZE, self.submenufont),
-#                        submenu(["REMOVE"], MenuType.delete, (1,1), varMenuOffset, self.BUTTON_SIZE, self.submenufont),
-                        submenu(stepBtns, MenuType.steps, (2,1), varMenuOffset, self.BUTTON_SIZE, self.submenufont)]
-
-        specialMenu = submenu(specialMenuBtns, MenuType.menu, specialMenuTiles, specialMenuOffset, specialMenuTileSizes, self.submenufont)
-
-        self.fixedMenus =   [fixedBuildMenu, specialMenu]
-
-
-        subMenuKeys = fixedBuildMenuKeys + specialMenuBtns
-        subMenuValues = fixedBuildMenuValues + specialMenus
-        
-        self.submenus = dict(zip(subMenuKeys, subMenuValues))
-        
-        #second part of menu-entry is ((width, height),(pxXOffset, pxYOffset)) - width/height in amount of buttons
-        self.activeSubmenu = None
-
-        self.action = Action.NO_ACTION
-        
-        #init stuff
-        self.mapType = "normal"
-        self.redrawMapSurface()
-        self.assembleMap()
-        self.drawMapOnScreen()
-        self.drawMenu()
-        self.drawMenuOnScreen()
-        self.gameDisplay.update()
-        
-    def MapCoords(self, mousePosition):
-        (x, y) = ((mousePosition[0] - self.mapXOffset)//self.TILE_SIZE, (mousePosition[1] - self.mapYOffset)//self.TILE_SIZE)
-        if(x < 0):
-            x = 0
-        if(y < 0):
-            y = 0
-        if(x >= aiv.AIV_SIZE):
-            x = aiv.AIV_SIZE - 1
-        if(y >= aiv.AIV_SIZE):
-            y = aiv.AIV_SIZE - 1
-        return (x, y)
-
-    def getInputTile(self, x, y, inputBMP): #starts at 0,0
-        originOffset = 1    #first tile offset in x/y-direction from bmp-origin
-        bmpTileSize = 32    #bmp edge length of a tile
-        tileGap = 1   #horizontal distance to next column
-
-        xTileOrigin = originOffset + x*(bmpTileSize + tileGap)
-        yTileOrigin = originOffset + y*(bmpTileSize + tileGap)
-
-        rect = pg.Rect(xTileOrigin, yTileOrigin, bmpTileSize, bmpTileSize)
-        return inputBMP.subsurface(rect)
-        
-    def loadSurfaces(self, path):
-        #self.loadDummySurfaces()
-        rawBMP = pg.image.load(path)
-        #get coloured surface-tiles
-        for elem in aiv_enums.Building_Id:
-            surfaceList = []
-            if(elem == aiv_enums.Building_Id.NOTHING):#grass
-                for variation in range(0, 8):
-                    surfaceList.append(self.getInputTile(20, variation, rawBMP))
-            elif(elem.value == aiv_enums.Building_Id.STAIRS_1):
-                surfaceList.append(self.getInputTile(21, 0, rawBMP))
-            elif(elem.value == aiv_enums.Building_Id.STAIRS_2):
-                surfaceList.append(self.getInputTile(21, 1, rawBMP))
-            elif(elem.value == aiv_enums.Building_Id.STAIRS_3):
-                surfaceList.append(self.getInputTile(21, 2, rawBMP))
-            elif(elem.value == aiv_enums.Building_Id.STAIRS_4):
-                surfaceList.append(self.getInputTile(21, 3, rawBMP))
-            elif(elem.value == aiv_enums.Building_Id.STAIRS_5):
-                surfaceList.append(self.getInputTile(21, 4, rawBMP))
-            elif(elem.value == aiv_enums.Building_Id.STAIRS_6):
-                surfaceList.append(self.getInputTile(21, 5, rawBMP))
-            else:
-                for variation in range(0, 10): #10 different tile-variations for each color depending on edge
-                    surfaceList.append(self.getInputTile(elem.value//10, variation, rawBMP))
-            self.buildingSurfaces.update({elem.value : surfaceList})
-        for elem in aiv_enums.Troop_Id:
-            surface = self.troopFont.render(str(elem.name), True, (255, 0, 0))
-            self.troopSurfaces.update({elem.value : surface})
-    
-    def loadDummySurfaces(self):
-        #generate map of (enum, surface) where surface is just a surfaces of TILE_SIZE x TILE_SIZE with text from enum
-        for elem in aiv_enums.Building_Id:
-            #textSurface, rect = self.sysfont.render(str(elem.name), False, (255, 255, 255))
-            textSurface = self.sysfont.render(str(elem.name), True, (255, 255, 255))
-            buildingSurface = pg.Surface((self.TILE_SIZE, self.TILE_SIZE))
-            buildingSurface.blit(textSurface, (0, 0))
-            self.buildingSurfaces.update({elem.value : buildingSurface})
-        
-    def assembleMap(self):
-        dbgPrint("assembling map")
-        self.mapScreen.fill(pg.Color(0,0,0))
-        self.mapScreen.blit(self.mapSurface, (self.mapXOffset, self.mapYOffset))
-        if(self.action == Action.DRAG_STH):
-            dbgPrint("assembling map with sth to drag")
-            (mouseMapXCoord, mouseMapYCoord) = self.MapCoords(self.mousePosition)
-            xSize, ySize = self.dragSurface.get_size()
-            xSize = xSize/self.TILE_SIZE
-            ySize = ySize/self.TILE_SIZE
-            if(mouseMapXCoord + xSize > aiv.AIV_SIZE):
-                mouseMapXCoord = aiv.AIV_SIZE - xSize
-            if(mouseMapYCoord + ySize > aiv.AIV_SIZE):
-                mouseMapYCoord = aiv.AIV_SIZE - ySize
-            self.mapScreen.blit(self.dragSurface, (self.mapXOffset + mouseMapXCoord*self.TILE_SIZE, self.mapYOffset + mouseMapYCoord*self.TILE_SIZE))
-
-        stepDisp = str(self.aivLogic.step_cur) + "/" + str(self.aivLogic.step_tot)
-        font = pg.font.SysFont("Shia LaBeouf.ttf", 30)
-        stepSurface = font.render(stepDisp, True, (255, 0, 0))
-        self.mapScreen.blit(stepSurface, (0, 0))
-
-    def updateShadow(self):
-        if(self.chosenButton != None):
-            if(self.chosenButton[0].type == MenuType.building):
-                building = aiv.Building(self.chosenButton[1])
-                ySize, xSize = building.mask_full().shape
-                self.dragSurface = pg.Surface((xSize*self.TILE_SIZE, ySize*self.TILE_SIZE))
-                (xPos, yPos) = self.MapCoords(self.mousePosition)
-                if(xPos + xSize >= aiv.AIV_SIZE):
-                    xPos = aiv.AIV_SIZE - xSize
-                if(yPos + ySize >= aiv.AIV_SIZE):
-                    yPos = aiv.AIV_SIZE - ySize
-                if(self.aivLogic.building_isplaceable(building, (xPos, yPos))):
-                    self.dragSurface.fill(pg.Color(0,255,0))
-                else:
-                    self.dragSurface.fill(pg.Color(255,0,0))
-            if(self.chosenButton[0].type == MenuType.menu):
-                pass
-            if(self.chosenButton[0].type == MenuType.delete):
-                self.dragSurface = pg.Surface((self.TILE_SIZE, self.TILE_SIZE))
-                self.dragSurface.fill(pg.Color(255,0,0))
-            #TODO
-            if(self.chosenButton[0].type == MenuType.troop):
-                troop = self.chosenButton[1]
-                self.dragSurface = self.sysfont.render(troop, True, (255, 255, 255), (0, 0, 0))
-                (xPos, yPos) = self.MapCoords(self.mousePosition)
-                if(xPos >= aiv.AIV_SIZE):
-                    xPos = aiv.AIV_SIZE - xSize
-                if(yPos >= aiv.AIV_SIZE):
-                    yPos = aiv.AIV_SIZE - ySize
-
-#   def drawAction(self):
-#       if(self.chosenButton != None):
-#           building = aiv.Building(self.chosenButton[0].buttons[self.chosenButton[1] + self.chosenButton[2]*self.chosenButton[0].width])
-#           pos = self.MapCoords(self.mousePosition)
-#           xSize, ySize = building.mask_full().shape
-#           self.dragSurface = pg.Surface(xSize*self.TILE_SIZE, ySize*self.TILE_SIZE)
-#           if self.aivLogic.building_isplaceable(building, pos):
-#               self.dragSurface.fill(pg.Color(0,255,0))
-#           else:
-#               self.dragSurface.fill(pg.Color(255,0,0))
-        
-    def redrawMapSurface(self): #redraws the map-surface, but not the screen
-        if(self.mapType == "normal"):
-            namePositions = []
-            self.mapSurface.fill(pg.Color(255,255,255))
-            for x in range(0, aiv.AIV_SIZE):
-                for y in range(0, aiv.AIV_SIZE):
-                    buildingId = self.aivLogic.bmap_id[y, x]
-                    #buildingStep = self.aivLogic.bmap_step[y, x]
-                    #if(buildingStep <= self.aivLogic.currentSte
-                    #gmap not implemented yet :/ git blame julius
-                    if(buildingId == aiv_enums.Building_Id.NOTHING):
-                        self.mapSurface.blit(self.buildingSurfaces[buildingId][self.aivLogic.gmap[x,y]], (x*self.TILE_SIZE, y*self.TILE_SIZE))
-                    else:
-                        buildingSurface = self.buildingSurfaces[buildingId][self.aivLogic.bmap_tile[y, x]].copy()
-                        if(self.aivLogic.bmap_step[y, x] >= self.aivLogic.step_cur):
-                            buildingSurface.set_alpha(127)
-                            self.mapSurface.blit(buildingSurface, (x*self.TILE_SIZE, y*self.TILE_SIZE))
-                        else:
-                            #self.buildingSurfaces[buildingId][self.aivLogic.bmap_tile[y, x]], (x*self.TILE_SIZE, y*self.TILE_SIZE)
-                            self.mapSurface.blit(buildingSurface, (x*self.TILE_SIZE, y*self.TILE_SIZE))
-                    if(self.aivLogic.bmap_tile[y, x] == 1):
-                        namePositions.append((x,y))
-            for pos in namePositions:
-                (x, y) = pos
-                size = self.aivLogic.bmap_size[y, x]
-                textSurface = self.buildingNameFont.render(str(aiv_enums.Building_Id(self.aivLogic.bmap_id[y, x]).name), True, (0, 0, 0))
-                (width, height) = textSurface.get_size()
-                self.mapSurface.blit(textSurface, ((x + size/2 )*self.TILE_SIZE - width/2, (y + size/2)*self.TILE_SIZE - height/2))
-            for x in range(0, aiv.AIV_SIZE):
-                for y in range(0, aiv.AIV_SIZE):
-                    troopId = self.aivLogic.tmap[y, x]
-                    if(troopId != 0):
-                        troopSurface = self.troopSurfaces[troopId]
-                        tile = pg.Surface((self.TILE_SIZE, self.TILE_SIZE))
-                        tile.fill(pg.Color(0, 0, 100))
-                        self.mapSurface.blit(tile, (x*self.TILE_SIZE, y*self.TILE_SIZE))
-                        self.mapSurface.blit(troopSurface, (int((x + 0.5)*self.TILE_SIZE - troopSurface.get_width()/2), int((y + 0.5)*self.TILE_SIZE - troopSurface.get_height()/2)))
-        else:
-            self.mapSurface.fill(pg.Color(255,255,255))
-            for x in range(0, aiv.AIV_SIZE):
-                for y in range(0, aiv.AIV_SIZE):
-                    tmpSurface = None
-                    if(self.mapType == "bmap_id"):
-                        buildingId = self.aivLogic.bmap_id[y, x]
-                        txt = buildingId
-
-                    elif(self.mapType == "bmap_id_name"):
-                        buildingId = self.aivLogic.bmap_id[y, x]
-                        buildingName = aiv_enums.Building_Id(buildingId).name
-                        txt = buildingName
-
-                    elif(self.mapType == "bmap_size"):
-                        bmapSize = self.aivLogic.bmap_size[y, x]
-                        txt = bmapSize
-
-                    elif(self.mapType == "bmap_tile"):
-                        bmapTile = self.aivLogic.bmap_tile[y, x]
-                        txt = bmapTile
-
-                    elif(self.mapType == "tmap"):
-                        tmap = self.aivLogic.tmap[y, x]
-                        txt = tmap
-
-                    elif(self.mapType == "bmap_step"):
-                        bmapStep = self.aivLogic.bmap_step[x, y]
-                        txt = bmapStep
-
-                    elif(self.mapType == "tmap_name"):
-                        tmap = self.aivLogic.tmap[y, x]
-                        tmapName = "0"
-                        if(tmap in aiv_enums.Troop_Id._value2member_map_):
-                            tmapName = aiv_enums.Troop_Id(tmap).name
-                        txt = tmapName
-
-                    else:
-                        print("No known mapType!")
-                        break
-
-                    tmpSurface = self.dbgFont.render(str(txt), True, (0, 0, 0, 255))
-                    self.mapSurface.blit(tmpSurface, (int((x + 0.5)*self.TILE_SIZE - tmpSurface.get_width()/2), int((y + 0.5)*self.TILE_SIZE - tmpSurface.get_height()/2)))
-
-
-    def drawMapOnScreen(self):
-        self.screen.blit(self.mapScreen, (0, 0))
-
-    def drawMenuOnScreen(self):
-        dbgPrint("Drawing menu on screen")
-        self.screen.blit(self.menuScreen, self.menuOffset) #right-aligned menu
-    
-    def drawMenu(self):
-        self.menuScreen.fill(pg.Color(0, 0, 255))
-        for fmenu in self.fixedMenus:
-            self.menuScreen.blit(fmenu.drawSubmenu(), fmenu.offset)
-        if(self.activeSubmenu != None):
-            dbgPrint("Drawing submenu to menuScreen")
-            self.menuScreen.blit(self.activeSubmenu.drawSubmenu(), self.activeSubmenu.offset)
-        else:
-            dbgPrint("No submenu to draw")
-        #button über denen gehovert wird aufleuchten lassen
-        #button der ausgewählt ist durchgehend aufleuchten lassen
-    
-    def checkButtons(self):
-        MenuMousePosX = self.mousePosition[0] - self.menuOffset[0] #subtract global menu-offset
-        MenuMousePosY = self.mousePosition[1] - self.menuOffset[1] #subtract global menu-offset
-        #check fixed menu
-        for fmenu in self.fixedMenus:
-            #tmpMouseposition that is relative to fixed menu-offset
-            #then the index id can be calculated by dividing by tilesize - TODO this function has to be updated for non-connected buttons
-            tmpMousePosX = MenuMousePosX - fmenu.offset[0]
-            tmpMousePosY = MenuMousePosY - fmenu.offset[1]
-            xIndx = tmpMousePosX//fmenu.btnsize[0]
-            yIndx = tmpMousePosY//fmenu.btnsize[1]
-            if(xIndx >= 0 and xIndx < fmenu.width and yIndx >= 0 and yIndx < fmenu.height):
-                linearIndex = xIndx + yIndx*fmenu.width
-                buttonKey = fmenu.buttons[linearIndex]
-                #thats a bingo
-                return (fmenu, buttonKey, linearIndex)
-        if(self.activeSubmenu != None):
-            tmpMousePosX = MenuMousePosX - self.activeSubmenu.offset[0]
-            tmpMousePosY = MenuMousePosY - self.activeSubmenu.offset[1]
-            xIndx = tmpMousePosX//self.activeSubmenu.btnsize[0]
-            yIndx = tmpMousePosY//self.activeSubmenu.btnsize[1]
-            if(xIndx >= 0 and xIndx < self.activeSubmenu.width and yIndx >= 0 and yIndx < self.activeSubmenu.height):
-                linearIndex = xIndx + yIndx*self.activeSubmenu.width
-                buttonKey = self.activeSubmenu.buttons[linearIndex]
-                #thats a bingo
-                return (self.activeSubmenu, buttonKey, linearIndex)
-        else:
-            return None
+            file_menu.add_command(label=lang_data["New"][lang],     command = parent.new,     accelerator = "Ctrl+N")
+            file_menu.add_command(label = "Open...",                command = parent.open,    accelerator = "Ctrl+O")
+            file_menu.add_command(label = "Save",                   command = parent.save,    accelerator = "Ctrl+S")
+            file_menu.add_command(label = "Save as...",             command = parent.save_as, accelerator = "Ctrl+Shift+S")
+            file_menu.add_separator()
+            file_menu.add_command(label = "Export...",              command = parent.export,  accelerator = "Ctrl+Shift+E")
+            file_menu.add_separator()
+            file_menu.add_command(label= "Exit",                    command = exit)
             
-    def equalButtons(self, otherButton): #otherButton is of same type as self.chosenButton i.e.. (subMenu, xIndx, yIndx)
-        #compare if buttons contain same submenus and same index. that's the only way to identify them atm
-        if(otherButton == None or self.chosenButton == None):
-            return False
-        if(otherButton[0].equalSubmenu(otherButton[0])):
-            if(otherButton[1] == self.chosenButton[1] and otherButton[2] == self.chosenButton[2]):
-                return True
-        return False
+            # view menu
+            view_menu = tk.Menu(menubar, tearoff = 0)
+            menubar.add_cascade(label= "View", menu = view_menu)
 
-    def run(self):
-        clock = pg.time.Clock()
-        run = True
-        while run:
-            for event in pg.event.get():
-                if event.type == pg.QUIT:
-                    run = False
-                else:
-                    self.checkEvent(event)
-                dbgPrint(event)
-            #self.drawEditor()
-            #pg.display.update()
-            clock.tick(30) #fps
-        pg.quit()
+            view_menu.add_command(label = "Zoom in",                command = parent.map.zoomIn, accelerator = "Ctrl++")
+            view_menu.add_command(label = "Zoom out",               command = parent.map.zoomOut,accelerator = "Ctrl+-")
 
+            # help menu
+            help_menu = tk.Menu(menubar, tearoff = 0)   
+            menubar.add_cascade(label= "Help", menu = help_menu)
 
-    #def loadFile(self):
-    #    #textSurface, rect = self.sysfont.render("text", False, (255, 255, 255))
+            help_menu.add_command(label = "About...",               command = parent.about)
 
-    #    #print sth on screen that tells you that you have to type in a file-path
-    #    #TODO FIX: this is not printed unless you create an event (move mouse, ...)
-    #    font = pg.font.SysFont("Shia LaBeouf.ttf", 30)
-    #    loadTitle = font.render("Loading: Please enter path to aiv-file", False, (255, 255, 255), (0,0,255))
+    class Map(tk.Frame):    # class(MatthiasIstSchuld(JuliusIstSchuld))
+        def __init__(self, frame_parent, parent):
+            tk.Frame.__init__(self, frame_parent)
 
-    #    titleRectCenterOnScreen = ((self.screen.get_width() - loadTitle.get_width())//2, (self.screen.get_height() - loadTitle.get_height())//2)
-    #    self.screen.blit(loadTitle, titleRectCenterOnScreen)
-    #    self.gameDisplay.update()
+            self.canvas = tk.Canvas(frame_parent)
 
-    #    #read and print input
-    #    read = True
-    #    load = True
-    #    path = ""
-    #    while read:
-    #    #     pg.key.start_text_input()
-    #        for event in pg.event.get():
-    #            if event.type == pg.KEYDOWN and read == True: #don't handle keys send after reading has finished
-    #                if event.key == pg.KEY_ESCAPE:
-    #                    read = False
-    #                    load = False
-    #                elif event.key == pg.enter:
-    #                    read = False
-    #                else:
-    #                    add key-string to inputstring
+            self.parent = parent
+            self.frame_parent = frame_parent #please don't hurt me
 
-    #            #else:
-    #                #don't do shit, only leave if enter or esc is pressed
-    #            dbgPrint(event)
-    #        #self.drawEditor()
-    #        #pg.display.update()
-    #        clock.tick(30) #fps
+            self.canvas.grid(row = 0, column = 0, sticky = "nsew")
+            frame_parent.columnconfigure(0, weight = 1)
+            frame_parent.rowconfigure(0, weight = 1)
 
 
-    #    #when enter: self.aivLogic.load(input)
-    #    #self.aivLogic.load("res/pig8.aiv")
+            self.TileSize = 32
+            self.shadow = None
+            #dictionaries, building/troop-id as key, corresponding tiles (of type Image) as value
+            self.buildingTiles = {}
+            self.troopTiles = {}
+            self.loadTileset("res/tiles.bmp")
 
+            self.mapOrigin = (0,0) #in pixel
+            self.lastMousePosition = (0,0)
+            self.chosenUnit = None
 
-    #TODO: dokumentation - wie es sein sollte
-    #was passiert wann:
-    #nichts ausgewhlt:
-    #                   links-klick:            
-    #ausgew�hltes geb�ude:
-    #                   links-klick im men�:    men� wird �berpr�ft und neues geb�ude/men� ausgew�hlt oder aktuelles geb�ude abgew�hlt
-    #                   links-klick auf karte:  �berpr�fen ob platzierbar und wenn ja platzieren
-
-    #TODO: transfer state-machine. flesh out stuff. rest should... be quite okay?
-
-    def checkEvent(self, event):
-        if(event.type == pg.MOUSEMOTION or event.type == pg.MOUSEBUTTONUP or event.type == pg.MOUSEBUTTONDOWN):
-            self.mousePosition = event.pos
-        #update self.mousePosition on every event!
-        #events that have attribute pos:
-        #MOUSEMOTION       pos, rel, buttons
-        #MOUSEBUTTONUP     pos, button
-        #MOUSEBUTTONDOWN   pos, button
-
-        #debug screen
-        if(event.type == pg.KEYDOWN):
-            if(event.key == pg.K_1):
-                self.mapType = "normal"
-                dbgPrint("self.mapType = normal")
-            elif(event.key == pg.K_2):
-                self.mapType = "bmap_size"
-                dbgPrint("self.mapType = bmap_size")
-            elif(event.key == pg.K_3):
-                self.mapType = "bmap_tile"
-                dbgPrint("self.mapType = bmap_tile")
-            elif(event.key == pg.K_4):
-                self.mapType = "tmap"
-                dbgPrint("self.mapType = tmap")
-            elif(event.key == pg.K_5):
-                self.mapType = "bmap_id"
-                dbgPrint("self.mapType = bmap_id")
-            elif(event.key == pg.K_6):
-                self.mapType = "bmap_step"
-                dbgPrint("self.mapType = bmap_step")
-            elif(event.key == pg.K_7):
-                self.mapType = "bmap_id_name"
-                dbgPrint("self.mapType = bmap_id_name")
-            elif(event.key == pg.K_8):
-                self.mapType = "tmap_name"
-                dbgPrint("self.mapType = tmap_name")
-            self.updateShadow()
+            self.mapSurface = Image.new("RGBA", (self.TileSize*AIV_SIZE, self.TileSize*AIV_SIZE), (0, 0, 0, 255))
             self.redrawMapSurface()
-            self.assembleMap()
-            self.drawMapOnScreen()
-            self.gameDisplay.update()
+
+            #size of whole editor
+            FrameWidth = self.canvas.winfo_width()
+            FrameHeight = self.canvas.winfo_height()
+            self.screenTSize = ((FrameWidth + self.TileSize - 1)//self.TileSize, (FrameHeight + self.TileSize - 1)//self.TileSize)
+            self.screenSize = (FrameWidth, FrameHeight)
+
+            blackground = Image.new("RGB", self.screenSize, (0, 0, 0))
+            blackground.paste(self.mapSurface, self.mapOrigin)
+
+            self.screen = ImageTk.PhotoImage(blackground)
+            self.canvas.create_image(0, 0, image=self.screen, anchor=tk.NW)
 
 
-        #change action depending on current action and event
-        if(self.action == Action.NO_ACTION):
-            dbgPrint("no action")
-            #left-click could either drags the map or chooses a button
-            if(event.type == pg.MOUSEBUTTONDOWN and event.button == 1):
-                #mouse on map:
-                if(event.pos[0] < self.menuOffset[0] and event.pos[1] < self.screenHeight):
-                    self.action = Action.DRAG_MAP
-                #check if mouse is above certain button
-                #chosenButton: (submenu, xIndx, yIndx)
-                else:
-                    self.chosenButton = self.checkButtons()
-                    if self.chosenButton != None:
-                        self.action = Action.CHOOSING
-            else:
-                #left button hasn't been clicked - nothing has been chosen
-                self.chosenButton = None
-        elif(self.action == Action.CHOOSING):
-            dbgPrint("choosing")
-            if(event.type == pg.MOUSEBUTTONUP and event.button == 1):
-                # - kein callback mehr: funktion fest mit submenu-type verbinden.
-                # -- submenu umschalten
-                # -- gebäude/truppe ausgewählt
-                # -- gebäude/truppe platzieren
-                # -- special function: gebäude/truppe löschen
-                # -- datei laden
-                # -- datei speichern
-                otherButton = self.checkButtons()
-                if(self.equalButtons(otherButton)):
-                    dbgPrint("clicked on same button")
-                    dbgPrint(self.chosenButton[0].type)
-                    if(self.chosenButton[0].type == MenuType.building or self.chosenButton[0].type == MenuType.troop):
-                        self.action = Action.DRAG_STH
-                        self.updateShadow()
-                        self.assembleMap()
-                        self.drawMapOnScreen()
-                        self.gameDisplay.update()
-                    elif(self.chosenButton[0].type == MenuType.menu):
-                        (submenu, buttonKey, linearIndex) = self.chosenButton
-                        self.activeSubmenu = self.submenus[buttonKey]
+        def zoomOut(self, event = None):
+            (x0, y0) = self.mapOrigin #in units of pixel
 
-                        self.drawMenu()
-                        self.drawMenuOnScreen()
-                        self.gameDisplay.update()
-                        self.action = Action.NO_ACTION
-                        self.chosenButton = None
-                    elif(self.chosenButton[0].type == MenuType.delete):
-                        self.action = Action.DRAG_STH
-                        self.updateShadow()
-                        self.assembleMap()
-                        self.drawMapOnScreen()
-                        self.gameDisplay.update()
-                    elif(self.chosenButton[0].type == MenuType.load):
-                        self.action = Action.LOAD_FILE_DIALOGUE
-                    elif(self.chosenButton[0].type == MenuType.save):
-                        self.action = Action.SAVE_FILE_DIALOGUE
-                    elif(self.chosenButton[0].type == MenuType.steps):
-                        self.action = Action.STEPS
+            if(self.TileSize != 1):
+                self.TileSize = self.TileSize//2
+                self.resizeTileset()
+
+                (FrameWidth, FrameHeight) = self.screenSize
+                #zoomIn out to center of the screen
+                self.mapOrigin = (x0//2 + FrameWidth//4, y0//2 + FrameHeight//4)
+
+                self.screenTSize = ((FrameWidth + self.TileSize - 1)//self.TileSize, (FrameHeight + self.TileSize - 1)//self.TileSize)
+
+                self.mapSurface = Image.new("RGBA", (self.TileSize*AIV_SIZE, self.TileSize*AIV_SIZE), (0, 0, 0, 255))
+                self.redrawMapPartially((0,0), self.screenTSize)
+                self.updateMapScreen()
+
+        def zoomIn(self, event = None):
+            (x0, y0) = self.mapOrigin #in units of pixel
+            (FrameWidth, FrameHeight) = self.screenSize
+
+            self.TileSize = self.TileSize*2
+            self.resizeTileset()
+
+            #zoomIn on center of the screen
+            self.mapOrigin = (x0*2 - FrameWidth//2, y0*2 - FrameHeight//2)
+
+            self.screenTSize = ((FrameWidth + self.TileSize - 1)//self.TileSize, (FrameHeight + self.TileSize - 1)//self.TileSize)
+
+
+            self.mapSurface = Image.new("RGBA", (self.TileSize*AIV_SIZE, self.TileSize*AIV_SIZE), (0, 0, 0, 255))
+            self.redrawMapPartially((0,0), self.screenTSize)
+            self.updateMapScreen()
+
+        def unchose(self, event):
+            self.chosenUnit = None
+
+        def mapCoords(self, position):
+            (x, y) = position
+            (x0, y0) = self.mapOrigin
+            x = (x - x0)//self.TileSize
+            y = (y - y0)//self.TileSize
+            return (x, y)
+
+        def clickOnMap(self, event):
+            x = event.x
+            y = event.y
+            self.lastMousePosition = (x, y)
+            if(self.chosenUnit != None):
+                kind = self.chosenUnit[0]
+                position = self.mapCoords((x, y))
+
+                if(kind == "Building"):
+                    buildingId = self.chosenUnit[1]
+                    building = Building(buildingId)
+
+                    if(self.parent.aiv.building_isplaceable(building, position)):
+                        self.parent.aiv.building_place(building, position)
+                        self.redrawMapPartially((x, y), building.mask_full().shape)
+                elif(kind == "Unit"):
+                    unitId = self.chosenUnit[1]
+                    self.parent.aiv.troop_place(unitId, position)
+                    self.redrawMapPartially((x, y), (1, 1))
+                elif(kind == "DeleteUnit"):
+                    self.parent.aiv.troop_remove(position)
+                    self.redrawMapPartially((x, y), (1, 1))
+                elif(kind == "DeleteBuilding"):
+                    (xDelete, yDelete) = position
+                    buildingId = self.parent.aiv.bmap_id[yDelete, xDelete]
+                    buildingId = aiv_enums.Building_Id(buildingId).name
+                    building = Building(buildingId)
+                    self.parent.aiv.building_remove(position)
+
+                    (xSize, ySize) = building.mask_full().shape
+                    #increase size that is redrawn, since the mouse could also click on the lower right of the building
+                    self.redrawMapPartially((x - xSize*self.TileSize, y - ySize*self.TileSize), (2*xSize, 2*ySize))
+                elif(kind == "Wall-like"):
+                    #TODO: on first click: save current position
+                    #      on second click: build wall/whatevs from first position to current position
+                    pass
+
+                self.updateMapScreen()
+
+        def dragStuff(self, event):
+            x = event.x
+            y = event.y
+            self.lastMousePosition = (x, y)
+            if(self.chosenUnit != None):
+                shadow = None
+                (xTile, yTile) = self.mapCoords((x, y))
+                kind = self.chosenUnit[0]
+
+                if(kind == "Building"):
+                    buildingId = self.chosenUnit[1]
+                    building = Building(buildingId)
+                    mask = building.mask_full()
+                    (sizex, sizey) = mask.shape
+
+                    tile = None
+                    if(self.parent.aiv.building_isplaceable(building, (xTile, yTile))):
+                        tile = Image.new("RGBA", (self.TileSize, self.TileSize), (0, 255, 0, 255))
                     else:
-                        sys.exit(">>>>>>>>fatal error<<<<<<<<")#should be fixed. just in case.
-                else:
-                    self.chosenButton = None
-                    self.action = Action.NO_ACTION
+                        tile = Image.new("RGBA", (self.TileSize, self.TileSize), (255, 0, 0, 255))
+
+                    shadow = Image.new("RGBA", (sizex*self.TileSize, sizey*self.TileSize), (0, 0, 0, 0))
+                    for x in range(sizex):
+                        for y in range(sizey):
+                            shadow.paste(tile, (x*self.TileSize, y*self.TileSize))
+                elif(kind == "Unit"):
+                    unitId = self.chosenUnit[1]
+                    shadow = Image.new("RGBA", (self.TileSize, self.TileSize), (0, 255, 0, 127))
+                elif(kind == "DeleteUnit" or kind == "DeleteBuilding"):
+                    shadow = Image.new("RGBA", (self.TileSize, self.TileSize), (255, 0, 0, 127))
+                elif(kind == "Wall-like"):
+                    pass
+                    #is not yet implemented in clickOnMap
+                self.shadow = shadow
+                self.updateMapScreen()
             else:
-                #uff... really? should any other action also abort the 'choosing'-process?... yeah.
-                self.chosenButton = None
-                self.action = Action.NO_ACTION
-        elif(self.action == Action.DRAG_STH):
-            dbgPrint("dragging sth")
-            #check if placeable
-            if(self.mousePosition[0] < self.menuOffset[0]): #stuff is only dragged when mouse is above map
-                if(event.type == pg.MOUSEMOTION):
-                    self.updateShadow() #if shadow moves over sth s.t. its not buildable any more it has to be updated
-                    self.assembleMap()
-                    self.drawMapOnScreen()
-                    self.gameDisplay.update()
-                if(event.type == pg.MOUSEBUTTONDOWN and event.button == 1):
-                    if(self.chosenButton[0].type == MenuType.delete):
+                self.shadow = None
+                self.updateMapScreen()
+
+        def move_north(self, event = None):
+            (x, y) = self.mapOrigin
+            y += self.TileSize
+            self.mapOrigin = (x, y)
+
+            self.updateMapScreen()
+
+        def move_south(self, event = None):
+            (x, y) = self.mapOrigin
+            y -= self.TileSize
+            self.mapOrigin = (x, y)
+
+            self.updateMapScreen()
+
+        def move_east(self, event = None):
+            (x, y) = self.mapOrigin
+            x -= self.TileSize
+            self.mapOrigin = (x, y)
+
+            self.updateMapScreen()
+
+        def move_west(self, event = None):
+            (x, y) = self.mapOrigin
+            x += self.TileSize
+            self.mapOrigin = (x, y)
+
+            self.updateMapScreen()
+
+        def updateMapScreen(self):
+            FrameWidth = self.canvas.winfo_width()
+            FrameHeight = self.canvas.winfo_height()
+            self.screenTSize = ((FrameWidth + self.TileSize - 1)//self.TileSize, (FrameHeight + self.TileSize - 1)//self.TileSize)
+            self.screenSize = (FrameWidth, FrameHeight)
+
+            self.screen = Image.new("RGBA", self.screenSize, (0, 0, 127, 255))
+            self.screen.paste(self.mapSurface, self.mapOrigin)
+
+            if(self.shadow != None):
+                (xTile, yTile) = self.mapCoords(self.lastMousePosition)
+                (x0, y0) = self.mapOrigin
+
+                xPos = xTile*self.TileSize + x0
+                yPos = yTile*self.TileSize + y0
+
+                self.screen.paste(self.shadow, (xPos, yPos))
+            self.screen = ImageTk.PhotoImage(self.screen)
+
+            self.canvas.create_image(0, 0, image=self.screen, anchor=tk.NW)
+
+        def moveMap(self, event):
+            (x,y) = self.lastMousePosition
+            moveX = event.x - x
+            moveY = event.y - y
+
+            (x, y) = self.mapOrigin
+            x += moveX
+            y += moveY
+            self.mapOrigin = (x, y)
+
+            (x0, y0) = self.mapOrigin #in units of pixel
+
+            self.redrawMapPartially((0,0), self.screenTSize)
+
+            self.updateMapScreen()
+
+            self.lastMousePosition = (event.x, event.y)
+
+        def resizeFrame(self, event):
+            FrameWidth = self.canvas.winfo_width()
+            FrameHeight = self.canvas.winfo_height()
+            self.screenTSize = ((FrameWidth + self.TileSize - 1)//self.TileSize, (FrameHeight + self.TileSize - 1)//self.TileSize)
+            self.screenSize = (FrameWidth, FrameHeight)
+
+            self.redrawMapPartially(self.mapOrigin, self.screenTSize)
+            self.updateMapScreen()
+
+        def drawUnitOnMap(self, position):
+            (x0, y0) = position
+            (sizex, sizey) = (1,1)
+            for x in range(x0, x0+sizex):
+                for y in range(y0, y0+sizey):
+                    troopId = self.parent.aiv.tmap[y, x]
+                    if(troopId != 0):
+                        troopTile = self.troopTiles[troopId]
+                        background = self.mapSurface.crop((x*self.TileSize, y*self.TileSize, (x+1)*self.TileSize, (y+1)*self.TileSize))
+                        newMapTile = Image.alpha_composite(background, troopTile)
+                        # newMapTile.show()
+                        self.mapSurface.paste(newMapTile, (x*self.TileSize, y*self.TileSize))
+
+#        def drawBuildingOnMap(self, building, position):
+#            (x0, y0) = position
+#            mask = building.mask_full()
+#            (sizex, sizey) = mask.shape
+#
+#            namePositions = []
+#            for x in range(x0, x0+sizex):
+#                for y in range(y0, y0+sizey):
+#                    buildingId = self.parent.aiv.bmap_id[y, x]
+#                    buildingSurface = None
+#                    #grass
+#                    if(buildingId == aiv_enums.Building_Id.NOTHING):
+#                        buildingSurface = self.buildingTiles[buildingId][self.parent.aiv.gmap[y, x]]
+#                    #moat or pitch or any other tile that doesn't have an orientation - walls?
+#                    elif(buildingId < 30):
+#                        buildingSurface = self.buildingTiles[buildingId]
+#                    else:
+#                        buildingSurface = self.buildingTiles[buildingId][self.parent.aiv.bmap_tile[y, x]]
+#                    if(self.parent.aiv.bmap_step[y, x] >= self.parent.aiv.step_cur):
+#                        buildingSurface.putalpha(127)
+#                    self.mapSurface.paste(buildingSurface, (x*self.TileSize, y*self.TileSize))
+#                    if(self.parent.aiv.bmap_tile[y, x] == 1):
+#                        namePositions.append((x,y))
+#
+#                    troopId = self.parent.aiv.tmap[y, x]
+#                    if(troopId != 0):
+#                        troopTile = self.troopTiles[troopId]
+#
+#                        background = self.mapSurface.crop((x*self.TileSize, y*self.TileSize, (x+1)*self.TileSize, (y+1)*self.TileSize))
+#                        newMapTile = Image.alpha_composite(background, troopTile)
+#                        self.mapSurface.paste(newMapTile, (x*self.TileSize, y*self.TileSize))
+
+
+        def redrawMapPartially(self, origin, size):
+            (x0, y0) = self.mapCoords(origin)
+            (sizex, sizey) = size
+
+            x0 = max(0, x0)
+            y0 = max(0, y0)
+
+            xMax = min(x0+sizex, AIV_SIZE)
+            yMax = min(y0+sizey, AIV_SIZE)
+
+            namePositions = []
+            for x in range(x0, xMax):
+                for y in range(y0, yMax):
+                    buildingId = self.parent.aiv.bmap_id[y, x]
+                    buildingSurface = None
+                    #grass
+                    if(buildingId == aiv_enums.Building_Id.NOTHING):
+                        buildingSurface = self.buildingTiles[buildingId][self.parent.aiv.gmap[y, x]]
+                    #moat or pitch or any other tile that doesn't have an orientation - walls?
+                    elif(buildingId < 30):
+                        buildingSurface = self.buildingTiles[buildingId]
+                    else:
+                        buildingSurface = self.buildingTiles[buildingId][self.parent.aiv.bmap_tile[y, x]]
+                    if(self.parent.aiv.bmap_step[y, x] >= self.parent.aiv.step_cur):
+                        buildingSurface.putalpha(127)
+                    self.mapSurface.paste(buildingSurface, (x*self.TileSize, y*self.TileSize))
+                    if(self.parent.aiv.bmap_tile[y, x] == 1):
+                        namePositions.append((x,y))
+
+                    troopId = self.parent.aiv.tmap[y, x]
+                    if(troopId != 0):
+                        troopTile = self.troopTiles[troopId]
+
+                        background = self.mapSurface.crop((x*self.TileSize, y*self.TileSize, (x+1)*self.TileSize, (y+1)*self.TileSize))
+                        newMapTile = Image.alpha_composite(background, troopTile)
+                        self.mapSurface.paste(newMapTile, (x*self.TileSize, y*self.TileSize))
+
+
+        def redrawMapSurface(self): #redraws the map-surface, but not the screen
+            self.mapSurface = Image.new("RGBA", (self.TileSize*AIV_SIZE, self.TileSize*AIV_SIZE), (0, 0, 0, 255))
+            namePositions = []
+            for x in range(0, AIV_SIZE): 
+                for y in range(0, AIV_SIZE):
+                    buildingId = self.parent.aiv.bmap_id[y, x]
+                    buildingSurface = None
+                    #grass
+                    if(buildingId == aiv_enums.Building_Id.NOTHING):
+                        buildingSurface = self.buildingTiles[buildingId][self.parent.aiv.gmap[y, x]]
+                    #moat or pitch or any other tile that doesn't have an orientation - walls?
+                    elif(buildingId < 30):
+                        buildingSurface = self.buildingTiles[buildingId]
+                    else:
+                        buildingSurface = self.buildingTiles[buildingId][self.parent.aiv.bmap_tile[y, x]]
+                    if(self.parent.aiv.bmap_step[y, x] >= self.parent.aiv.step_cur):
+                        buildingSurface.putalpha(127)
+                    self.mapSurface.paste(buildingSurface, (x*self.TileSize, y*self.TileSize))
+                    if(self.parent.aiv.bmap_tile[y, x] == 1):
+                        namePositions.append((x,y))
+
+                    #draw troops "above" buildings
+                    troopId = self.parent.aiv.tmap[y, x]
+                    if(troopId != 0):
+                        troopTile = self.troopTiles[troopId]
+
+                        background = self.mapSurface.crop((x*self.TileSize, y*self.TileSize, (x+1)*self.TileSize, (y+1)*self.TileSize))
+                        newMapTile = Image.alpha_composite(background, troopTile)
+                        self.mapSurface.paste(newMapTile, (x*self.TileSize, y*self.TileSize))
+        #        for pos in namePositions:
+        #            (x, y) = pos
+        #            size = self.parent.aiv.bmap_size[y, x]
+        #
+        #            #for nice transparent text: crop underlying map, alpha_composite with text-image, then paste back to map
+        #
+        # #           #crop building
+        # #           im = inputBMP.crop((left, upper, right, lower))
+        # #           #TODO: buildings of size 2 might not get properly cropped, but atm they don't even have text since they have no tile with bmap_tile == 1
+        # #           left = x - (size-1)/2
+        # #           upper = y - (size-1)/2
+        # #           building = self.mapSurface.crop((left, upper, right, lower))
+        #
+        #            #blank image for text, transparent
+        #            txt = Image.new("RGBA", (self.TileSize*size, self.TileSize*size), (0, 0, 255, 0))
+        #            #get a font
+        #            font = ImageFont.load_default()
+        #            #get a drawing context from blank image
+        #            d = ImageDraw.Draw(txt)
+        #            #draw text to image
+        #            d.text(((self.TileSize*size)//2, (self.TileSize*size)//2), str(aiv_enums.Building_Id(self.parent.aiv.bmap_id[y, x]).name), fill="black", anchor="mm", font=font)
+        #            self.mapSurface.paste(txt, (x*self.TileSize, y*self.TileSize))
+
+        def getInputTile(self, x, y, inputBMP):
+            originOffset = 1 #first tile offset in x/y-direction
+            bmpTileSize = 32 #edge length of a tile
+            tileGap = 1 #space between tiles
+
+            left = originOffset + x*(bmpTileSize + tileGap)
+            upper = originOffset + y*(bmpTileSize + tileGap)
+            right = left + bmpTileSize
+            lower = upper + bmpTileSize
+
+            im = inputBMP.crop((left, upper, right, lower))
+            return im
+
+        def resizeTileset(self):
+            for key in self.buildingTiles:
+                if(isinstance(self.buildingTiles[key], type(Image))):
+                    self.buildingTiles[key] = self.buildingTiles[key].resize((self.TileSize, self.TileSize))
+                elif(isinstance(self.buildingTiles[key], list)):
+                    newImageList = []
+                    for i in range(len(self.buildingTiles[key])):
+                        newImageList.append(self.buildingTiles[key][i].resize((self.TileSize, self.TileSize)))
+                    self.buildingTiles[key] = newImageList
+            for key in self.troopTiles:
+                self.troopTiles[key] = self.troopTiles[key].resize((self.TileSize, self.TileSize))
                         
-                        if(self.chosenButton[1] == "REMOVE_BUILDING"):
-                            dbgPrint("deleting building at {0}".format(self.mousePosition))
-                            self.aivLogic.building_remove(self.MapCoords(self.mousePosition))
-                        if(self.chosenButton[1] == "REMOVE_TROOP"):
-                            dbgPrint("deleting troop at {0}".format(self.mousePosition))
-                            self.aivLogic.troop_remove(self.MapCoords(self.mousePosition))
-                    if(self.chosenButton[0].type == MenuType.building):
-                        building = aiv.Building(self.chosenButton[1])
-                        if(self.aivLogic.building_isplaceable(building, self.MapCoords(self.mousePosition))):
-                            self.aivLogic.building_place(building, self.MapCoords(self.mousePosition))
-                    if(self.chosenButton[0].type == MenuType.troop):
-                        troop = aiv_enums.Troop_Id[self.chosenButton[1]]#no idea how Troop is implemented in aiv - guess its similar to Building
-                        self.aivLogic.troop_place(troop, self.MapCoords(self.mousePosition))
-                    self.updateShadow()
-                    self.redrawMapSurface()
-                    self.assembleMap()
-                    self.drawMapOnScreen()
-                    self.gameDisplay.update()
-            if(event.type == pg.MOUSEBUTTONDOWN and event.button != 1): #any mouse button but left was clicked - cancel action
-                self.chosenButton = None
-                self.action = Action.NO_ACTION
-                self.assembleMap()
-                self.drawMapOnScreen()
-                self.gameDisplay.update()
-        elif(self.action == Action.DRAG_MAP):
-            dbgPrint("dragging map")
-            if(event.type == pg.MOUSEMOTION and event.buttons == (1, 0, 0) and event.pos[0] < self.screenHeight and event.pos[1] < self.screenWidth):
-                self.mapXOffset += event.rel[0]
-                self.mapYOffset += event.rel[1]
-                self.assembleMap()
-                self.drawMapOnScreen()
-                self.gameDisplay.update()
+
+        def loadTileset(self, path):
+            rawBMP = Image.open(path)
+            rawBMP.putalpha(255)
+            for elem in aiv_enums.Building_Id:
+                imageList = []
+                # grass
+                if(elem.value == aiv_enums.Building_Id.NOTHING):
+                    for variation in range(0, 8):
+                        imageList.append(self.getInputTile(8, variation, rawBMP))
+                # border
+                elif(elem.value == aiv_enums.Building_Id.BORDER_TILE):
+                    imageList = self.getInputTile(9, 9, rawBMP)
+                # auto
+                elif(elem.value == aiv_enums.Building_Id.AUTO):
+                    imageList = self.getInputTile(9, 8, rawBMP)
+                # walls    
+                elif(elem.value == aiv_enums.Building_Id.HIGH_WALL):
+                    imageList = self.getInputTile(0, 9, rawBMP)
+                elif(elem.value == aiv_enums.Building_Id.LOW_WALL):
+                    imageList = self.getInputTile(1, 9, rawBMP)
+                elif(elem.value == aiv_enums.Building_Id.HIGH_CRENEL):
+                    imageList = self.getInputTile(0, 0, rawBMP)
+                elif(elem.value == aiv_enums.Building_Id.LOW_CRENEL):
+                    imageList = self.getInputTile(1, 0, rawBMP)
+                #stairs
+                elif(elem.value == aiv_enums.Building_Id.STAIRS_1):
+                    imageList = self.getInputTile(9, 0, rawBMP)
+                elif(elem.value == aiv_enums.Building_Id.STAIRS_2):
+                    imageList = self.getInputTile(9, 1, rawBMP)
+                elif(elem.value == aiv_enums.Building_Id.STAIRS_3):
+                    imageList = self.getInputTile(9, 2, rawBMP)
+                elif(elem.value == aiv_enums.Building_Id.STAIRS_4):
+                    imageList = self.getInputTile(9, 3, rawBMP)
+                elif(elem.value == aiv_enums.Building_Id.STAIRS_5):
+                    imageList = self.getInputTile(9, 4, rawBMP)
+                elif(elem.value == aiv_enums.Building_Id.STAIRS_6):
+                    imageList = self.getInputTile(9, 5, rawBMP)
+                # moat
+                elif(elem.value == aiv_enums.Building_Id.MOAT):
+                    imageList = self.getInputTile(8, 8, rawBMP)
+                # pitch
+                elif(elem.value == aiv_enums.Building_Id.PITCH):
+                    imageList = self.getInputTile(8, 9, rawBMP)
+                # else
+                else:
+                    for variation in range(0, 10): #10 different tile-orientations for each color
+                        #imageList.append(self.getInputTile((elem.value-30)//10, variation, rawBMP))
+                        imageList.append(self.getInputTile(elem.value//10 - 3, variation, rawBMP))
+                self.buildingTiles.update({elem.value : imageList})
+            
+            for elem in aiv_enums.Troop_Id:
+                #blank image for text, transparent
+                txt = Image.new("RGBA", (self.TileSize, self.TileSize), (255, 0, 0, 255))
+                #get a font
+                font = ImageFont.load_default()
+                #get a drawing context from blank image
+                d = ImageDraw.Draw(txt)
+                #draw text to image
+                d.text((self.TileSize//2, self.TileSize//2), str(elem.name), fill="black", anchor="mm", font=font)
+                self.troopTiles.update({elem.value : txt})
+        
+        def save_image(self, path):
+            self.mapSurface.save(path)
+
+    class Navbar(tk.Frame):
+        def __init__(self, frame_parent, parent):
+            tk.Frame.__init__(self, frame_parent)
+
+            self.button_firs    = tk.Button(frame_parent, text = "|<",  command = parent.step_first)
+            self.button_prev    = tk.Button(frame_parent, text = "<",   command = parent.step_prev)
+            self.slider_step    = tk.Scale(frame_parent, command = parent.update_slider, from_ = 1, to = parent.aiv.step_tot, orient = tk.HORIZONTAL)
+            self.slider_step.set(parent.aiv.step_cur)
+            self.button_next    = tk.Button(frame_parent, text = ">",   command = parent.step_next)
+            self.button_last    = tk.Button(frame_parent, text = ">|",  command = parent.step_last)
+
+            self.button_firs.grid(row = 0, column = 0, sticky="nsew")
+            self.button_prev.grid(row = 0, column = 1, sticky="nsew")
+            self.slider_step.grid(row = 0, column = 2, sticky="nsew")
+            self.button_next.grid(row = 0, column = 3, sticky="nsew")
+            self.button_last.grid(row = 0, column = 4, sticky="nsew")
+            
+            frame_parent.grid_columnconfigure(0, weight=1)
+            frame_parent.grid_columnconfigure(1, weight=1)
+            frame_parent.grid_columnconfigure(2, weight=2)
+            frame_parent.grid_columnconfigure(3, weight=1)
+            frame_parent.grid_columnconfigure(4, weight=1)
+
+            frame_parent.grid_rowconfigure(0, weight=1)
+
+    class Category(tk.Frame):
+        def __init__(self, frame_parent, parent):
+            tk.Frame.__init__(self, frame_parent)
+            
+            names = ["De", "Wa", "Ca", "Ga", "We", "In", "Mi", "Mo", "Fo", "To", "Go", "Ba"]
+
+            for r in range(0,2):
+                frame_parent.grid_rowconfigure(r, weight=1)
+                for c in range (0,6):
+                    frame_parent.grid_columnconfigure(c, weight=1)
+                    idx = 6*r+c
+                    tk.Button(frame_parent, text = names[idx], command = lambda idx=idx: self.redraw_menu(parent, names[idx])).grid(row = r, column = c, sticky="nsew")
+
+        def redraw_menu(self, parent, category):
+            parent.menu = parent.Menu(parent.frame_menu, parent, category)
+
+    class Menu(tk.Frame):
+        def __init__(self, frame_parent, parent, category = "De"):
+            tk.Frame.__init__(self, frame_parent)
+            self.parent = parent
+
+            if category == "De":
+                tk.Button(frame_parent, text = "POINT", command = lambda: self.set_delete_building()).grid(row = 0, column = 0, sticky="nsew", columnspan = 2)
+                tk.Button(frame_parent, text = "FLOOD", command = exit).grid(row = 1, column = 0, sticky="nsew", columnspan = 2)
+                for r in range(2,11):
+                    tk.Button(frame_parent, text = "", command = exit).grid(row = r, column = 0, sticky="nsew", columnspan = 2)
+
+            elif category == "Wa":
+                tk.Button(frame_parent, text = "HIGH_WALL",     command = exit).grid(row = 0, column = 0, sticky="nsew", columnspan = 2)
+                tk.Button(frame_parent, text = "LOW_WALL",      command = exit).grid(row = 1, column = 0, sticky="nsew", columnspan = 2)
+                tk.Button(frame_parent, text = "HIGH_CRENEL",   command = exit).grid(row = 2, column = 0, sticky="nsew", columnspan = 2)
+                tk.Button(frame_parent, text = "LOW_CRENEL",    command = exit).grid(row = 3, column = 0, sticky="nsew", columnspan = 2)
+                tk.Button(frame_parent, text = "STAIRS",        command = exit).grid(row = 4, column = 0, sticky="nsew", columnspan = 2)
+                for r in range(5,11):
+                    tk.Button(frame_parent, text = "", command = exit).grid(row = r, column = 0, sticky="nsew", columnspan = 2)
+            
+            elif category == "Mi":
+                for r in range(0,11):
+                    for c in range(0,2):
+                        idx = 2*r+c
+                        if idx == 0:
+                            tk.Button(frame_parent, text = "DELETE",    command = lambda: self.set_delete_unit()).grid(row = 0, column = 0, sticky="nsew")
+                        else:
+                            enum = aiv_enums.Troop_Id(idx)
+                            tk.Button(frame_parent, text = enum.name,   command = lambda l = enum.value: self.set_unit(l)).grid(row = r, column = c, sticky="nsew")
+
+            elif category == "Mo":
+                tk.Button(frame_parent, text = "MOAT",  command = exit).grid(row = 0, column = 0, sticky="nsew", columnspan = 2)
+                tk.Button(frame_parent, text = "PITCH", command = exit).grid(row = 1, column = 0, sticky="nsew", columnspan = 2)
+                for r in range(2,11):
+                    tk.Button(frame_parent, text = "",  command = exit).grid(row = r, column = 0, sticky="nsew", columnspan = 2)
+
             else:
-                self.action = Action.NO_ACTION
-        elif(self.action == Action.LOAD_FILE_DIALOGUE):
-            self.aivLogic.load("res/load.aiv")
-            self.action = Action.NO_ACTION
-            self.redrawMapSurface()
-            self.assembleMap()
-            self.drawMapOnScreen()
-            self.gameDisplay.update()
-        elif(self.action == Action.SAVE_FILE_DIALOGUE):
-            self.aivLogic.save("out/save.aiv")
-            self.action = Action.NO_ACTION
-        if(self.action == Action.STEPS):
-            #self.chosenButton = (fmenu, buttonKey, linearIndex)
-            dbgPrint(self.chosenButton[1])
-            if(self.chosenButton[1] == "BACKWARD"):
-                if(self.aivLogic.step_cur > 0):
-                    self.aivLogic.step_cur -= 1
-                    dbgPrint("BACKWARD")
-            if(self.chosenButton[1] == "FORWARD"):
-                if(self.aivLogic.step_cur < self.aivLogic.step_tot):
-                    self.aivLogic.step_cur += 1
-                    dbgPrint("FORWARD")
-            self.redrawMapSurface()
-            self.assembleMap()
-            self.drawMapOnScreen()
-            self.gameDisplay.update()
-            self.action = Action.NO_ACTION
+                base = 0
+                if category == "Ca":
+                    base = 30
+                elif category == "Ga":
+                    base = 40
+                elif category == "We":
+                    base = 50
+                elif category == "In":
+                    base = 60
+                elif category == "Fo":
+                    base = 70
+                elif category == "To":
+                    base = 80
+                elif category == "Go":
+                    base = 90
+                elif category == "Ba":
+                    base = 100
+                else:
+                    raise Exception("Nope")
 
-        #    else:
-        #        sys.exit("moment mal. das sollte gar nicht passieren d�rfen")
+                for r in range(0,10):
+                    try:
+                        enum = aiv_enums.Building_Id(base+r)
+                        tk.Button(frame_parent, text = enum.name, command = lambda l = enum.name: self.set_building(l)).grid(row = r, column = 0, sticky = "nsew", columnspan = 2)
+                    except:
+                        tk.Button(frame_parent, text = "", command = exit).grid(row = r, column = 0, sticky="nsew", columnspan = 2)
+                tk.Button(frame_parent, text = "", command = exit).grid(row = 10, column = 0, sticky="nsew", columnspan = 2)
 
+            for r in range(0,11):
+                frame_parent.grid_rowconfigure(r, weight=1)
+                for c in range(0,2):
+                    frame_parent.grid_columnconfigure(c, weight=1)
+        
+        def set_building(self, id):
+            self.parent.map.chosenUnit = ("Building", id)
 
-#Lauf!
-editor = editor()
-editor.run()
+        def set_unit(self, id):
+            self.parent.map.chosenUnit = ("Unit", id)
+
+        def set_delete_building(self):
+            self.parent.map.chosenUnit = ("DeleteBuilding", 42)
+
+        def set_delete_unit(self):
+            self.parent.map.chosenUnit = ("DeleteUnit", 69) #nice
+
+    def new(self, e = None):
+        self.ask_save()
+        self.aiv = Aiv()
+
+        self.update_slider()
+
+    def open(self, e = None):
+        self.ask_save()
+        
+        aiv_path = fd.askopenfilename()
+
+        if aiv_path == "":
+            return
+        else:
+            self.aiv = Aiv(aiv_path)
+
+        self.update_slider()
+
+    def ask_save(self, e = None):
+        save = mb.askyesnocancel("Village++", "Save Changes?")
+
+        if save == True:
+            self.save_as()
+        elif save == False:
+            return
+        elif save == None:
+            return
+
+    def save(self, e = None):
+        aiv_path = self.aiv_path
+
+        if aiv_path == None:
+            self.save_as()
+        else:
+            self.aiv.save(aiv_path)
+
+    def save_as(self, e = None):
+        aiv_path = fd.asksaveasfilename()
+
+        if aiv_path == None:
+            return
+        else:
+            self.aiv.save(aiv_path)
+
+    def export(self, e = None):
+        # save = mb.askyesno("Village++", "Do you want to export a preview?")
+
+        # if save == True:
+        #     preview_path = fd.asksaveasfilename()
+        #     if preview_path == None:
+        #         return
+        #     else:
+        #         self.aiv.save_preview(preview_path)
+        # else:
+        #     return
+    
+        save = mb.askyesno("Village++", "Do you want to export PICTURE?")
+
+        if save == True:
+            image_path = fd.asksaveasfilename()
+            if image_path == None:
+                return
+            else:
+                self.map.save_image(image_path)
+        else:
+            return
+
+    def about(self, e = None):
+        # TODO: implement about screen
+        raise NotImplementedError
+
+    def step_next(self, e = None):
+        if (self.aiv.step_cur < self.aiv.step_tot):
+            self.aiv.step_cur += 1
+        self.update_slider()
+
+    def step_prev(self, e = None):
+        if (self.aiv.step_cur > 1):
+            self.aiv.step_cur -= 1
+        self.update_slider()
+
+    def step_first(self, e = None):
+        self.aiv.step_cur = 1
+        self.update_slider()
+
+    def step_last(self, e = None):
+        self.aiv.step_cur = self.aiv.step_tot
+        self.update_slider()
+
+    def update_slider(self, e = None):
+        if e != None:
+            self.aiv.step_cur = int(e)
+            print("step_set: ", self.aiv.step_cur, "/", self.aiv.step_tot)
+            self.map.redrawMapSurface()
+            self.map.updateMapScreen()
+            return
+        self.navbar = self.Navbar(self.frame_navbar, self)
+
+if __name__ == "__main__":
+    vpp = Villagepp()
+    vpp.mainloop()
