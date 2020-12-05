@@ -225,7 +225,11 @@ class Villagepp(tk.Tk):
 
                     if(self.parent.aiv.building_isplaceable(building, position)):
                         self.parent.aiv.building_place(building, position)
-                        self.redraw_partially((x, y), building.mask_full().shape)
+
+                        (y_size, x_size) = building.mask_full().shape
+                        #self.on_drag(self, e)
+                        #TODO: update shadow, atm the shadow is still green if the mouse isnt moved directly after the building is placed/mouse is clicked
+                        self.redraw_partially((x, y), (x_size, y_size))
                 elif(kind == "Unit"):
                     unitId = self.selected[1]
                     self.parent.aiv.troop_place(unitId, position)
