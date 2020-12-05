@@ -289,9 +289,8 @@ class Villagepp(tk.Tk):
                 self.shadow = None
                 self.update_screen()
 
-        # TODO: merge move_keyboard and move_mouse into one function
         def move_keyboard(self, e = None, direction = None):
-            (x, y) = self.origin
+            (x, y) = (0,0)
 
             if (direction == 'N'):
                 y += self.tile_size
@@ -309,9 +308,7 @@ class Villagepp(tk.Tk):
                 x -= self.tile_size
             elif (direction == 'NE'):
                 pass
-
-            self.origin = (x, y)
-            self.update_screen()
+            self.move_map((x,y))
 
         def _move_north(self, e = None):
             self.move_keyboard(e, 'N')
@@ -330,23 +327,25 @@ class Villagepp(tk.Tk):
         def _move_north_east(self, e = None):
             self.move_keyboard(e, 'NE')
 
-        def move_mouse(self, e):
-            (x,y) = self.last_mouse_pos
-            moveX = e.x - x
-            moveY = e.y - y
 
+        def move_mouse(self, e):
+            (x0, y0) = self.last_mouse_pos
+            xDiff = e.x - x0
+            yDiff = e.y - y0
+            self.last_mouse_pos = (e.x, e.y)
+
+            self.move_map((xDiff, yDiff))
+
+        def move_map(self, posDiff):
             (x, y) = self.origin
+            (moveX, moveY) = posDiff
             x += moveX
             y += moveY
             self.origin = (x, y)
 
-            (x0, y0) = self.origin #in units of pixel
-
             self.redraw_partially((0,0), self.screenTSize)
 
             self.update_screen()
-
-            self.last_mouse_pos = (e.x, e.y)
 
         def update_screen(self):
             frame_width = self.canvas.winfo_width()
