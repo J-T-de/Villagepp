@@ -24,10 +24,7 @@ jobs:
         compile.bat
         mv compressionlib.dll ..\\bin\\compressionlib-${{ matrix.os }}-${{ matrix.platform }}.dll
         cd ..
-        echo "ls"
-        ls
-        echo "ls bin"
-        ls bin
+        dir
       if: matrix.os == 'windows-latest'
     
     - name: compile compressionlib unix-like
