@@ -19,7 +19,8 @@ jobs:
     - name: Compile compression library
       shell: cmd
       run: |
-        cd compression/new
+        cd compression
+        cd new
         compile.bat
         mv compressionlib.dll ..\\bin\\compressionlib-${{ matrix.os }}-${{ matrix.platform }}.dll
       if: matrix.os == 'windows-latest'
