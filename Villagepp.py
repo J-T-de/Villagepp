@@ -263,7 +263,7 @@ class Villagepp(tk.Tk):
                     buildingId = self.selected[1]
                     building = Building(buildingId)
                     mask = building.mask_full()
-                    (x_size, y_size) = mask.shape
+                    (y_size, x_size) = mask.shape
 
                     tile = None
                     if(self.parent.aiv.building_isplaceable(building, (x_tile, y_tile))):
