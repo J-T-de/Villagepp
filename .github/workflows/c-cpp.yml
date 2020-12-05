@@ -16,30 +16,33 @@ jobs:
     - name: Enable Developer Command Prompt
       uses: ilammy/msvc-dev-cmd@v1.3.0
       if: matrix.os == 'windows-latest'
-    - name: Compile compression library
+
+    - name: compile compressionlib windows
       shell: cmd
       run: |
-        cd compression
-        cd new
+        cd compression\\new
         compile.bat
         mv compressionlib.dll ..\\bin\\compressionlib-${{ matrix.os }}-${{ matrix.platform }}.dll
       if: matrix.os == 'windows-latest'
-    - name: Compile compression library
+    
+    - name: compile compressionlib unix-like
       run: |
-        cd compression
+        cd compression/new
         chmod +x compile.sh
         ./compile.sh
         mv compressionlib.so ../bin/compressionlib-${{ matrix.os }}-${{ matrix.platform }}.so
       shell: bash
       if: matrix.os == 'ubuntu-latest' || matrix.os == 'macOS-latest'
-    - name: Archive production artifacts
+
+    - name: archive windows
       uses: actions/upload-artifact@v2
       if: matrix.os == 'windows-latest'
       with:
         name: compressionlib-binaries
         path: |
           compressionlib-${{ matrix.os }}-${{ matrix.platform }}.dll
-    - name: Archive production artifacts
+
+    - name: archive unix-like
       uses: actions/upload-artifact@v2
       if: matrix.os == 'ubuntu-latest' || matrix.os == 'macOS-latest'
       with:
