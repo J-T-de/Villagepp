@@ -560,13 +560,13 @@ class Villagepp(tk.Tk):
                     imageList = self.get_input_tile(9, 8, rawBMP)
                 # walls    
                 elif(elem.value == BuildingId.HIGH_WALL):
-                    imageList = self.get_input_tile(0, 9, rawBMP)
+                    imageList = self.get_input_tile(5, 0, rawBMP)
                 elif(elem.value == BuildingId.LOW_WALL):
-                    imageList = self.get_input_tile(1, 9, rawBMP)
+                    imageList = self.get_input_tile(7, 0, rawBMP)
                 elif(elem.value == BuildingId.HIGH_CRENEL):
-                    imageList = self.get_input_tile(0, 0, rawBMP)
+                    imageList = self.get_input_tile(4, 0, rawBMP)
                 elif(elem.value == BuildingId.LOW_CRENEL):
-                    imageList = self.get_input_tile(1, 0, rawBMP)
+                    imageList = self.get_input_tile(6, 0, rawBMP)
                 #stairs
                 elif(elem.value == BuildingId.STAIRS_1):
                     imageList = self.get_input_tile(9, 0, rawBMP)
