@@ -21,11 +21,11 @@ class Aiv(object):
         self.dir_version    = 200
 
         self.dir_uncompr_size = np.array([
-            4, 4, 40016, 10000, 10000, 10000, 10000, 20000, 40000, 4, 4, -1, 960, 4
+            4, 4, 40016, 10000, 10000, 10000, 10000, 20000, 40000, 4, 4, 200, 960, 4
         ], dtype=np.int32)
 
         self.dir_compr_size = np.array([
-            4, 4, 40016, -1, -1, -1, 10000, -1, -1, 4, 4, -1, 960, 4
+            4, 4, 40016, -1, -1, -1, 10000, -1, -1, 4, 4, 200, 960, 4
         ], dtype=np.int32)
 
         self.dir_id = np.array([
@@ -47,7 +47,7 @@ class Aiv(object):
         self.bmap_tile  = np.zeros((AIV_SIZE,AIV_SIZE), np.int8)
         self.tmap       = np.zeros((AIV_SIZE,AIV_SIZE), np.int8)
         # self.gmap       = np.zeros((AIV_SIZE,AIV_SIZE), np.int8)
-        self.gmap       = np.random.randint(0, 8, size=(AIV_SIZE,AIV_SIZE))
+        self.gmap       = np.random.randint(0, 8, size=(AIV_SIZE,AIV_SIZE), dtype=np.int8)
         self.bmap_id    = np.zeros((AIV_SIZE,AIV_SIZE), np.int16)
         self.bmap_step  = np.zeros((AIV_SIZE,AIV_SIZE), np.int32)
         self.step_cur   = 1
