@@ -54,7 +54,7 @@ class Aiv(object):
         self.step_tot   = 1
         self.parr       = -1 * np.ones( 50, np.int32)
         self.parr[0]    = 0
-        self.tarr       = np.zeros(960, np.int32)
+        self.tarr       = np.zeros((24,10), np.int32)
         self.pause      = 50
 
     def load(self, path):
@@ -204,7 +204,7 @@ class Aiv(object):
         # tarr
         i = 12
         size = self.dir_compr_size[i]
-        self.tarr = np.frombuffer(aiv_data[offset:offset+size], np.int32).copy()
+        self.tarr = np.frombuffer(aiv_data[offset:offset+size], np.int32).copy().reshape((24,10))
         offset += size
 
         # pause
@@ -609,49 +609,53 @@ class Aiv(object):
         places troop at pos
         """
         x, y = pos
+
+        # if there are less then 10 troops place, write the tile-id into  tarr
+        for i in range(0, 10):
+            if self.tarr[troop][i] == 0:
+                tile_id = AIV_SIZE * y + x
+                self.tarr[troop][i] = tile_id
+                break
+        else:
+            return  # return if there is no empty spot
+        
+        # also draw unit on tmap
         self.tmap[y, x] = troop
-
-        tile_id = AIV_SIZE * y + x
-        print(10*troop)
-
-        for slot in range(10 * troop, 10 * (troop+1)):
-            if self.tarr[slot]== 0:
-                self.tarr[slot] = tile_id
-                return
 
     def troop_remove(self, pos):
         """
         removes troop at pos
         """
         x, y = pos
-        # tile_id = AIV_SIZE * y + x
-        
-        troop = self.tmap[y, x]
-        if (troop == 0):
+        tile_id = AIV_SIZE * y + x
+
+        # find which troop is visible on pos
+        troop = self.tmap[y,x]
+        if troop == 0:
             return
+
+        # remove troop from tarr and shift all following up
+        for i in range(1, 10):
+            if self.tarr[troop][i] == tile_id:
+                idx = i
+                break
         
-        # update tmap
-        self.tmap[y, x] = 0
-
-        # first remove thing from tarr, then find something new in tmap
-
-
-        # for slot in range(0, len(self.tarr)):
-        #     if (self.tarr[slot] == tile_id):
-        #         self.tmap[y, x] = slot//10
+        # shift all other units
+        for i in range(idx,9):
+            self.tarr[troop][i] = self.tarr[troop][i+1]
+        self.tarr[troop][9] = 0
         
-        # # update tarr
-        # for slot in range(10*troop, 11*troop):
-        #     if (self.tarr[slot] == tile_id):
-        #         for slot_slot in range(slot, 11*troop-1):
-        #             self.tarr[slot_slot] = self.tarr[slot_slot+1]
+        # find new unit to render on tmap
+        for t in range(0, 24):
+            for i in range(0,10):
+                if self.tarr[t][i] == tile_id:
+                    self.tmap[y, x] = t
+                    return
+        else:
+            self.tmap[y,x] = 0
 
-
-    def add_pause(self, step):
-        if (self.parr[-1] != -1):
-            print("No more space to add a pause")
-            return
-        for i in range(0, len(self.parr)):
+    def pause_add(self, step):
+        for i in range(1, len(self.parr)):
             el = self.parr[i]
             if (step > el):
                 continue
@@ -667,12 +671,13 @@ class Aiv(object):
                 self.parr[i] = step
                 return       
 
-    def del_pause(self, step):
-        for i in range(0, len(self.parr)):
+    def pause_remove(self, step):
+        for i in range(1, len(self.parr)):
             if (self.parr[i] == step):
                 for j in range(i, len(self.parr)-1):
                     self.parr[j] = self.parr[j+1]
-        self.parr[-1] = -1
+                else:
+                    self.parr[-1] = -1
 
     def move_pos(self, dir):
         """
