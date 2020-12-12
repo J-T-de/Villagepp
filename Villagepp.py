@@ -733,6 +733,8 @@ class Villagepp(tk.Tk):
         self.aiv = Aiv()
 
         self.update_slider()
+        self.map.redraw_surface()
+        self.map.update_screen()
 
     def open(self, e = None):
         self.ask_save()

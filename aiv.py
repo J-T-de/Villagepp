@@ -534,7 +534,7 @@ class Aiv(object):
         m = building.mask_full()
         y_size, x_size = m.shape
 
-        if x_pos + x_size > AIV_SIZE or y_pos + y_size > AIV_SIZE:
+        if x_pos < 0 or x_pos + x_size > AIV_SIZE or y_pos < 0 or y_pos + y_size > AIV_SIZE:
             return False
 
         for x in range(0,x_size):
