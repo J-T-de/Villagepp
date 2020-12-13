@@ -203,6 +203,9 @@ class Villagepp(tk.Tk):
 
         def deselect(self, e):
             self.selected = None
+            self.last_mouse_pos = (e.x, e.y)
+            self.update_shadow()
+            self.update_screen()
 
         def coordinate(self, position):
             (x, y) = position
@@ -212,9 +215,8 @@ class Villagepp(tk.Tk):
             return (x, y)
 
         def on_click(self, e):
-            x = e.x
-            y = e.y
-            self.last_mouse_pos = (x, y)
+            self.last_mouse_pos = (e.x, e.y)
+            (x, y) = self.last_mouse_pos
             if(self.selected != None):
                 kind = self.selected[0]
                 position = self.coordinate((x, y))
@@ -227,8 +229,7 @@ class Villagepp(tk.Tk):
                         self.parent.aiv.building_place(building, position)
 
                         (y_size, x_size) = building.mask_full().shape
-                        #self.on_drag(self, e)
-                        #TODO: update shadow, atm the shadow is still green if the mouse isnt moved directly after the building is placed/mouse is clicked
+                        self.update_shadow()
                         self.redraw_partially((x, y), (x_size, y_size))
                 elif(kind == "Unit"):
                     unitId = self.selected[1]
@@ -255,11 +256,14 @@ class Villagepp(tk.Tk):
                 self.update_screen()
 
         def on_drag(self, e):
-            x = e.x
-            y = e.y
-            self.last_mouse_pos = (x, y)
+            self.last_mouse_pos = (e.x, e.y)
+            self.update_shadow()
+            self.update_screen()
+
+        def update_shadow(self):
+            (x, y) = self.last_mouse_pos
+            shadow = None
             if(self.selected != None):
-                shadow = None
                 (x_tile, y_tile) = self.coordinate((x, y))
                 kind = self.selected[0]
 
@@ -269,16 +273,26 @@ class Villagepp(tk.Tk):
                     mask = building.mask_full()
                     (y_size, x_size) = mask.shape
 
-                    tile = None
-                    if(self.parent.aiv.building_isplaceable(building, (x_tile, y_tile))):
-                        tile = Image.new("RGBA", (self.tile_size, self.tile_size), (0, 255, 0, 255))
+                    buildable = False
+                    if(buildingId == "HIGH_WALL" or buildingId == "LOW_WALL" or buildingId == "HIGH_CRENEL" or buildingId == "LOW_CRENEL" or buildingId == "STAIRS_1"):
+                        raise NotImplementedError
+                        #self.wall_origin has to be set in "on_click"
+                        #buildable = self.parent.aiv.building_isplaceable(building, self.wall_origin, (x_tile, y_tile))
                     else:
-                        tile = Image.new("RGBA", (self.tile_size, self.tile_size), (255, 0, 0, 255))
+                        buildable = self.parent.aiv.building_isplaceable(building, (x_tile, y_tile))
+
+                    tile = None
+                    if(buildable == True):
+                        tile = Image.new("RGBA", (self.tile_size, self.tile_size), (0, 255, 0, 127))
+                    else:
+                        tile = Image.new("RGBA", (self.tile_size, self.tile_size), (255, 0, 0, 127))
 
                     shadow = Image.new("RGBA", (x_size*self.tile_size, y_size*self.tile_size), (0, 0, 0, 0))
                     for x in range(x_size):
                         for y in range(y_size):
-                            shadow.paste(tile, (x*self.tile_size, y*self.tile_size))
+                            if(mask[y, x] == 1):
+                                shadow.paste(tile, (x*self.tile_size, y*self.tile_size))
+
                 elif(kind == "Unit"):
                     unitId = self.selected[1]
                     shadow = Image.new("RGBA", (self.tile_size, self.tile_size), (0, 255, 0, 127))
@@ -287,11 +301,7 @@ class Villagepp(tk.Tk):
                 elif(kind == "Wall-like"):
                     pass
                     #is not yet implemented in on_click
-                self.shadow = shadow
-                self.update_screen()
-            else:
-                self.shadow = None
-                self.update_screen()
+            self.shadow = shadow
 
         def move_keyboard(self, e = None, direction = None):
             (x, y) = (0,0)
@@ -362,12 +372,21 @@ class Villagepp(tk.Tk):
 
             if(self.shadow != None):
                 (x_tile, y_tile) = self.coordinate(self.last_mouse_pos)
+
+                (x_shadow_pixel_size, y_shadow_pixel_size) = self.shadow.size
+                (x_map_shadow_origin, y_map_shadow_origin) = (x_tile*self.tile_size, y_tile*self.tile_size)
+                (x_map_shadow_end, y_map_shadow_end) = (x_map_shadow_origin + x_shadow_pixel_size, y_map_shadow_origin + y_shadow_pixel_size)
+
+                background = self.surface.crop((x_map_shadow_origin, y_map_shadow_origin, x_map_shadow_end, y_map_shadow_end))
+
                 (x0, y0) = self.origin
+                x_screen_pos = x_map_shadow_origin + x0
+                y_screen_pos = y_map_shadow_origin + y0
+                screen_position = (x_screen_pos, y_screen_pos)
 
-                xPos = x_tile*self.tile_size + x0
-                yPos = y_tile*self.tile_size + y0
+                screen_shadow = Image.alpha_composite(background, self.shadow)
 
-                self.screen.paste(self.shadow, (xPos, yPos))
+                self.screen.paste(screen_shadow, screen_position)
             self.screen = ImageTk.PhotoImage(self.screen)
 
             self.canvas.create_image(0, 0, image=self.screen, anchor=tk.NW)
