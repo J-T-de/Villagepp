@@ -15,32 +15,32 @@ seq:
     type: u4
   - id: y_view
     type: u4
-  - id: random_state
+  - id: random
     size: 40016
   - id: bmap_size
-    type: bmap_size
+    type: compr_sec
   - id: bmap_tile
-    type: bmap_tile
+    type: compr_sec
   - id: tmap
-    type: tmap
+    type: compr_sec
   - id: gmap
     size: 10000
   - id: bmap_id
-    type: bmap_id
+    type: compr_sec
   - id: bmap_step
-    type: bmap_step
-  - id: step_current
+    type: compr_sec
+  - id: step_cur
     type: u4
-  - id: step_total
+  - id: step_tot
     type: u4
-  - id: pause_step
+  - id: parr
     type: s4
     repeat: expr
-    repeat-expr: _root.dir.uncompr_size[11]/4
+    repeat-expr: _root.dir.uncompr_size[11]/4 # always 10 or 50
   - id: tarr
     type: u4
     repeat: expr
-    repeat-expr: _root.dir.uncompr_size[12]/4
+    repeat-expr: 240
   - id: pause
     type: u4
     
@@ -48,15 +48,15 @@ seq:
 types:
   dir:  # directory
     seq:
-      - id: dir_size
+      - id: size    # always 2036
         type: u4
-      - id: file_size_without_dir
+      - id: fswd    # file size without directory
         type: u4
-      - id: sec_cnt
+      - id: sec_cnt # always 14
         type: u4
-      - id: magic
-        contents: [0xc8, 0x00, 0x00, 0x00]
-      - id: zeros1
+      - id: version # always 200
+        type: u4
+      - id: padding0
         contents: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
       - id: uncompr_size
@@ -79,9 +79,18 @@ types:
         type: u4
         repeat: expr
         repeat-expr: 100
-      - id: zeros2
+      - id: padding1
         contents: [0x00, 0x00, 0x00, 0x00]
-  bmap_size:
+
+  uncompr_sec:  # uncompressed section
+    params:
+      - id: i
+        type: u4
+    seq:
+      - id: data
+        size: _root.dir.uncompr_size[i] 
+
+  compr_sec:    # compressed section
     seq:
       - id: uncompr_size
         type: u4
@@ -90,54 +99,4 @@ types:
       - id: crc32
         type: u4
       - id: data
-        type: u1
-        repeat: expr
-        repeat-expr: compr_size
-  bmap_tile:
-    seq:
-      - id: uncompr_size
-        type: u4
-      - id: compr_size
-        type: u4
-      - id: crc32
-        type: u4
-      - id: data
-        type: u1
-        repeat: expr
-        repeat-expr: compr_size      
-  tmap:
-    seq:
-      - id: uncompr_size
-        type: u4
-      - id: compr_size
-        type: u4
-      - id: crc32
-        type: u4
-      - id: data
-        type: u1
-        repeat: expr
-        repeat-expr: compr_size     
-  bmap_id:
-    seq:
-      - id: uncompr_size
-        type: u4
-      - id: compr_size
-        type: u4
-      - id: crc32
-        type: u4
-      - id: data
-        type: u2
-        repeat: expr
-        repeat-expr: compr_size/2      
-  bmap_step:
-    seq:
-      - id: uncompr_size
-        type: u4
-      - id: compr_size
-        type: u4
-      - id: crc32
-        type: u4
-      - id: data
-        type: u4
-        repeat: expr
-        repeat-expr: compr_size/4
+        size: compr_size

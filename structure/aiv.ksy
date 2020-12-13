@@ -23,15 +23,15 @@ seq:
 types:
   dir:  # directory
     seq:
-      - id: dir_size
+      - id: size    # always 2036
         type: u4
-      - id: file_size_without_dir
+      - id: fswd    # file size without directory
         type: u4
-      - id: sec_cnt
+      - id: sec_cnt # always 14
         type: u4
-      - id: magic
-        contents: [0xc8, 0x00, 0x00, 0x00]
-      - id: zeros1
+      - id: version # always 200
+        type: u4
+      - id: padding0
         contents: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
       - id: uncompr_size
@@ -54,18 +54,18 @@ types:
         type: u4
         repeat: expr
         repeat-expr: 100
-      - id: zeros2
+      - id: padding1
         contents: [0x00, 0x00, 0x00, 0x00]
-  uncompr_sec:  # uncompressed Section
+
+  uncompr_sec:  # uncompressed section
     params:
       - id: i
         type: u4
     seq:
       - id: data
-        type: s4
-        repeat: expr
-        repeat-expr: _root.dir.uncompr_size[i]/4        
-  compr_sec:    # compressed Section
+        size: _root.dir.uncompr_size[i]
+
+  compr_sec:    # compressed section
     seq:
       - id: uncompr_size
         type: u4
