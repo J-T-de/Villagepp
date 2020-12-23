@@ -152,6 +152,8 @@ class Villagepp(tk.Tk):
             self.last_mouse_pos = (0,0)
             self.selected = None
 
+            self.wall_origin = None
+
             self.surface = Image.new("RGBA", (self.tile_size*AIV_SIZE, self.tile_size*AIV_SIZE), (0, 0, 0, 255))
             self.redraw_surface()
 
@@ -203,6 +205,7 @@ class Villagepp(tk.Tk):
 
         def deselect(self, e):
             self.selected = None
+            self.wall_origin = None
             self.last_mouse_pos = (e.x, e.y)
             self.update_shadow()
             self.update_screen()
@@ -227,8 +230,8 @@ class Villagepp(tk.Tk):
 
                     if(self.parent.aiv.building_isplaceable(building, position)):
                         self.parent.aiv.building_place(building, position)
-
                         (y_size, x_size) = building.mask_full().shape
+
                         self.update_shadow()
                         self.redraw_partially((x, y), (x_size, y_size))
                 elif(kind == "Unit"):
@@ -248,10 +251,17 @@ class Villagepp(tk.Tk):
                     (xSize, ySize) = building.mask_full().shape
                     #increase size that is redrawn, since the mouse could also click on the lower right of the building
                     self.redraw_partially((x - xSize*self.tile_size, y - ySize*self.tile_size), (2*xSize, 2*ySize))
-                elif(kind == "Wall-like"):
-                    #TODO: on first click: save current position
-                    #      on second click: build wall/whatevs from first position to current position
                     pass
+                #TODO WALL - when the aiv-functions are implemented it 'should' work
+                #elif(kind == "WallLike"):
+                #    if(self.wall_origin != None):
+                #        #on second click: build wall/whatevs from wall_origin to current position
+                #        if(self.parent.aiv.wall_isplaceable(self.wall_origin, position)):
+                #            self.parent.aiv.wall_place(buildingId, self.wall_origin, position)
+                #            self.wall_origin = None #reset status of wallplacement
+                #    else:
+                #        #on first click: save current position as wall origin
+                #        self.wall_origin = position
 
                 self.update_screen()
 
@@ -264,8 +274,10 @@ class Villagepp(tk.Tk):
             (x, y) = self.last_mouse_pos
             shadow = None
             if(self.selected != None):
-                (x_tile, y_tile) = self.coordinate((x, y))
+                tile_position = self.coordinate((x, y))
                 kind = self.selected[0]
+
+                tile_size = (self.tile_size, self.tile_size)
 
                 if(kind == "Building"):
                     buildingId = self.selected[1]
@@ -273,19 +285,13 @@ class Villagepp(tk.Tk):
                     mask = building.mask_full()
                     (y_size, x_size) = mask.shape
 
-                    buildable = False
-                    if(buildingId == "HIGH_WALL" or buildingId == "LOW_WALL" or buildingId == "HIGH_CRENEL" or buildingId == "LOW_CRENEL" or buildingId == "STAIRS_1"):
-                        raise NotImplementedError
-                        #self.wall_origin has to be set in "on_click"
-                        #buildable = self.parent.aiv.building_isplaceable(building, self.wall_origin, (x_tile, y_tile))
-                    else:
-                        buildable = self.parent.aiv.building_isplaceable(building, (x_tile, y_tile))
+                    buildable = self.parent.aiv.building_isplaceable(building, tile_position)
 
                     tile = None
                     if(buildable == True):
-                        tile = Image.new("RGBA", (self.tile_size, self.tile_size), (0, 255, 0, 127))
+                        tile = Image.new("RGBA", tile_size, (0, 255, 0, 127))
                     else:
-                        tile = Image.new("RGBA", (self.tile_size, self.tile_size), (255, 0, 0, 127))
+                        tile = Image.new("RGBA", tile_size, (255, 0, 0, 127))
 
                     shadow = Image.new("RGBA", (x_size*self.tile_size, y_size*self.tile_size), (0, 0, 0, 0))
                     for x in range(x_size):
@@ -294,13 +300,34 @@ class Villagepp(tk.Tk):
                                 shadow.paste(tile, (x*self.tile_size, y*self.tile_size))
 
                 elif(kind == "Unit"):
-                    unitId = self.selected[1]
-                    shadow = Image.new("RGBA", (self.tile_size, self.tile_size), (0, 255, 0, 127))
+                    #unitId = self.selected[1]
+                    shadow = Image.new("RGBA", tile_size, (0, 255, 0, 127))
                 elif(kind == "DeleteUnit" or kind == "DeleteBuilding"):
-                    shadow = Image.new("RGBA", (self.tile_size, self.tile_size), (255, 0, 0, 127))
-                elif(kind == "Wall-like"):
-                    pass
-                    #is not yet implemented in on_click
+                    shadow = Image.new("RGBA", tile_size, (255, 0, 0, 127))
+                #TODO WALL
+                #shit. the shadow is direction dependent.
+                #depends on how the mask is generated - if the mask is generated 'correctly' nothing has to be changed here but only the origin of the shadow has to be changed
+                #elif(kind == "WallLike"):
+                #    if(self.wall_origin != None):
+                #        buildable = self.parent.aiv.wall_isplaceable(self.wall_origin, tile_position)
+                #
+                #        tile = None
+                #        if(buildable == True):
+                #            tile = Image.new("RGBA", tile_size, (0, 255, 0, 127))
+                #        else:
+                #            tile = Image.new("RGBA", tile_size, (255, 0, 0, 127))
+                #
+                #        mask = self.parent.aiv.wall_like_mask(self.wall_origin, tile_position)
+                #        (y_size, x_size) = mask.shape
+                #
+                #        shadow = Image.new("RGBA", (x_size*self.tile_size, y_size*self.tile_size), (0, 0, 0, 0))
+                #        for x in range(x_size):
+                #            for y in range(y_size):
+                #                if(mask[y, x] == 1):
+                #                    shadow.paste(tile, (x*self.tile_size, y*self.tile_size))
+                #    else:
+                #        shadow = None #don't draw shadow if there is no wall_origin
+
             self.shadow = shadow
 
         def move_keyboard(self, e = None, direction = None):
@@ -371,22 +398,59 @@ class Villagepp(tk.Tk):
             self.screen.paste(self.surface, self.origin)
 
             if(self.shadow != None):
-                (x_tile, y_tile) = self.coordinate(self.last_mouse_pos)
+                if(self.selected[0] == "WallLike"):
+                    pass
+                    #TODO WALL - comment in
+                    #(xOrigin, yOrigin) = self.wall_origin
+                    #(xEnd, yEnd) = self.coordinate(self.last_mouse_pos)
 
-                (x_shadow_pixel_size, y_shadow_pixel_size) = self.shadow.size
-                (x_map_shadow_origin, y_map_shadow_origin) = (x_tile*self.tile_size, y_tile*self.tile_size)
-                (x_map_shadow_end, y_map_shadow_end) = (x_map_shadow_origin + x_shadow_pixel_size, y_map_shadow_origin + y_shadow_pixel_size)
+                    #x_map_shadow_origin = 0
+                    #y_map_shadow_origin = 0
 
-                background = self.surface.crop((x_map_shadow_origin, y_map_shadow_origin, x_map_shadow_end, y_map_shadow_end))
+                    #x_map_shadow_end = 0
+                    #y_map_shadow_end = 0
 
-                (x0, y0) = self.origin
-                x_screen_pos = x_map_shadow_origin + x0
-                y_screen_pos = y_map_shadow_origin + y0
-                screen_position = (x_screen_pos, y_screen_pos)
+                    #if(xEnd >= xOrigin):
+                    #    x_map_shadow_origin = xOrigin*self.tile_size
+                    #    x_map_shadow_end = xEnd*self.tile_size
+                    #elif(xEnd < xOrigin):
+                    #    x_map_shadow_origin = xEnd*self.tile_size
+                    #    x_map_shadow_end = xOrigin*self.tile_size
+                    #elif(yEnd >= yOrigin):
+                    #    y_map_shadow_origin = yOrigin*self.tile_size
+                    #    y_map_shadow_end = yEnd*self.tile_size
+                    #elif(yEnd < yOrigin):
+                    #    y_map_shadow_origin = yEnd*self.tile_size
+                    #    y_map_shadow_end = yOrigin*self.tile_size
 
-                screen_shadow = Image.alpha_composite(background, self.shadow)
+                    #background = self.surface.crop((x_map_shadow_origin, y_map_shadow_origin), (x_map_shadow_end, y_map_shadow_end))
 
-                self.screen.paste(screen_shadow, screen_position)
+                    #(x0, y0) = self.origin
+                    #x_screen_pos = x_map_shadow_origin + x0
+                    #y_screen_pos = y_map_shadow_origin + y0
+                    #screen_position = (x_screen_pos, y_screen_pos)
+
+                    #screen_shadow = Image.alpha_composite(background, self.shadow)
+
+                    #self.screen.paste(screen_shadow, screen_position)
+
+                else:
+                    (x_tile, y_tile) = self.coordinate(self.last_mouse_pos)
+
+                    (x_shadow_pixel_size, y_shadow_pixel_size) = self.shadow.size
+                    (x_map_shadow_origin, y_map_shadow_origin) = (x_tile*self.tile_size, y_tile*self.tile_size)
+                    (x_map_shadow_end, y_map_shadow_end) = (x_map_shadow_origin + x_shadow_pixel_size, y_map_shadow_origin + y_shadow_pixel_size)
+
+                    background = self.surface.crop((x_map_shadow_origin, y_map_shadow_origin, x_map_shadow_end, y_map_shadow_end))
+
+                    (x0, y0) = self.origin
+                    x_screen_pos = x_map_shadow_origin + x0
+                    y_screen_pos = y_map_shadow_origin + y0
+                    screen_position = (x_screen_pos, y_screen_pos)
+
+                    screen_shadow = Image.alpha_composite(background, self.shadow)
+
+                    self.screen.paste(screen_shadow, screen_position)
             self.screen = ImageTk.PhotoImage(self.screen)
 
             self.canvas.create_image(0, 0, image=self.screen, anchor=tk.NW)
@@ -679,11 +743,11 @@ class Villagepp(tk.Tk):
                     tk.Button(frame_parent, text = "", command = None).grid(row = r, column = 0, sticky="nsew", columnspan = 2)
 
             elif category == "Wa":
-                tk.Button(frame_parent, text = "HIGH_WALL",     command = None).grid(row = 0, column = 0, sticky="nsew", columnspan = 2)
-                tk.Button(frame_parent, text = "LOW_WALL",      command = None).grid(row = 1, column = 0, sticky="nsew", columnspan = 2)
-                tk.Button(frame_parent, text = "HIGH_CRENEL",   command = None).grid(row = 2, column = 0, sticky="nsew", columnspan = 2)
-                tk.Button(frame_parent, text = "LOW_CRENEL",    command = None).grid(row = 3, column = 0, sticky="nsew", columnspan = 2)
-                tk.Button(frame_parent, text = "STAIRS",        command = None).grid(row = 4, column = 0, sticky="nsew", columnspan = 2)
+                tk.Button(frame_parent, text = "HIGH_WALL",     command = lambda: self.set_walllike("HIGH_WALL")).grid(row = 0, column = 0, sticky="nsew", columnspan = 2)
+                tk.Button(frame_parent, text = "HIGH_CRENEL",   command = lambda: self.set_walllike("HIGH_CRENEL")).grid(row = 2, column = 0, sticky="nsew", columnspan = 2)
+                tk.Button(frame_parent, text = "LOW_WALL",      command = lambda: self.set_walllike("LOW_WALL")).grid(row = 1, column = 0, sticky="nsew", columnspan = 2)
+                tk.Button(frame_parent, text = "LOW_CRENEL",    command = lambda: self.set_walllike("LOW_CRENEL")).grid(row = 3, column = 0, sticky="nsew", columnspan = 2)
+                tk.Button(frame_parent, text = "STAIRS",        command = lambda: self.set_walllike("STAIRS")).grid(row = 4, column = 0, sticky="nsew", columnspan = 2)
                 for r in range(5,11):
                     tk.Button(frame_parent, text = "", command = None).grid(row = r, column = 0, sticky="nsew", columnspan = 2)
             
@@ -735,6 +799,9 @@ class Villagepp(tk.Tk):
                 for c in range(0,2):
                     frame_parent.grid_columnconfigure(c, weight=1)
         
+        def set_walllike(self, id):
+            self.parent.map.selected = ("WallLike", id)
+
         def set_building(self, id):
             self.parent.map.selected = ("Building", id)
 
