@@ -144,6 +144,7 @@ class Villagepp(tk.Tk):
             self.tile_size = 32
             self.shadow = None
             #dictionaries, building/troop-id as key, corresponding tiles (of type Image) as value
+            self.loaded_building_tiles = {}
             self.building_tiles = {}
             self.troop_tiles = {}
             self.load_tileset("res/tiles.bmp")
@@ -538,7 +539,6 @@ class Villagepp(tk.Tk):
                     self.surface.paste(buildingSurface, (x*self.tile_size, y*self.tile_size))
                     if(self.parent.aiv.bmap_tile[y, x] == 1):
                         namePositions.append((x,y))
-
                     troopId = self.parent.aiv.tmap[y, x]
                     if(troopId != 0):
                         troopTile = self.troop_tiles[troopId]
@@ -546,6 +546,26 @@ class Villagepp(tk.Tk):
                         background = self.surface.crop((x*self.tile_size, y*self.tile_size, (x+1)*self.tile_size, (y+1)*self.tile_size))
                         newMapTile = Image.alpha_composite(background, troopTile)
                         self.surface.paste(newMapTile, (x*self.tile_size, y*self.tile_size))
+            for (x, y) in namePositions:
+                buildingId = self.parent.aiv.bmap_id[y, x]
+                buildingName = BuildingId(buildingId).name
+                buildingSize = self.parent.aiv.bmap_size[y, x]
+
+                #get a font
+                font = ImageFont.load_default()
+                (txtSizeX, txtSizeY) = font.getsize(buildingName)
+
+                #blank image for text, transparent
+                txtTile = Image.new("RGBA", (buildingSize*self.tile_size, buildingSize*self.tile_size), (255, 255, 255, 0))
+                #get a drawing context from blank image
+                d = ImageDraw.Draw(txtTile)
+                #draw text to image
+                d.text((int(buildingSize*self.tile_size/2 - txtSizeX/2), int(buildingSize*self.tile_size/2 - txtSizeY/2)), str(buildingName), fill="black", anchor="mm", font=font)
+
+                background = self.surface.crop((x*self.tile_size, y*self.tile_size, (x+buildingSize)*self.tile_size, (y+buildingSize)*self.tile_size))
+                newMapTile = Image.alpha_composite(background, txtTile)
+
+                self.surface.paste(newMapTile, (x*self.tile_size, y*self.tile_size))
 
 
         def redraw_surface(self): #redraws the map-surface, but not the screen
@@ -616,14 +636,27 @@ class Villagepp(tk.Tk):
         def resize_tileset(self):
             for key in self.building_tiles:
                 if(isinstance(self.building_tiles[key], type(Image))):
-                    self.building_tiles[key] = self.building_tiles[key].resize((self.tile_size, self.tile_size))
+                    self.building_tiles[key] = self.loaded_building_tiles[key].resize((self.tile_size, self.tile_size))
                 elif(isinstance(self.building_tiles[key], list)):
                     newImageList = []
                     for i in range(len(self.building_tiles[key])):
-                        newImageList.append(self.building_tiles[key][i].resize((self.tile_size, self.tile_size)))
+                        newImageList.append(self.loaded_building_tiles[key][i].resize((self.tile_size, self.tile_size)))
                     self.building_tiles[key] = newImageList
             for key in self.troop_tiles:
-                self.troop_tiles[key] = self.troop_tiles[key].resize((self.tile_size, self.tile_size))
+                #blank image for text, transparent
+                txt = Image.new("RGBA", (self.tile_size, self.tile_size), (255, 0, 0, 127))
+
+                troopName = str(TroopId(key).name)
+
+                #get a font
+                font = ImageFont.load_default()
+                (txtSizeX, txtSizeY) = font.getsize(troopName)
+
+                #get a drawing context from blank image
+                d = ImageDraw.Draw(txt)
+                #draw text to image
+                d.text((int(self.tile_size/2 - txtSizeX/2), int(self.tile_size/2 - txtSizeY/2)), troopName, fill="black", anchor="mm", font=font)
+                self.troop_tiles[key] = txt
                         
 
         def load_tileset(self, path):
@@ -674,17 +707,21 @@ class Villagepp(tk.Tk):
                     for variation in range(0, 10): #10 different tile-orientations for each color
                         #imageList.append(self.get_input_tile((elem.value-30)//10, variation, rawBMP))
                         imageList.append(self.get_input_tile(elem.value//10 - 3, variation, rawBMP))
-                self.building_tiles.update({elem.value : imageList})
+                self.loaded_building_tiles.update({elem.value : imageList})
+            self.building_tiles = self.loaded_building_tiles
             
             for elem in TroopId:
                 #blank image for text, transparent
-                txt = Image.new("RGBA", (self.tile_size, self.tile_size), (255, 0, 0, 255))
+                txt = Image.new("RGBA", (self.tile_size, self.tile_size), (255, 0, 0, 127))
+
                 #get a font
                 font = ImageFont.load_default()
+                (txtSizeX, txtSizeY) = font.getsize(str(elem.name))
+
                 #get a drawing context from blank image
                 d = ImageDraw.Draw(txt)
                 #draw text to image
-                d.text((self.tile_size//2, self.tile_size//2), str(elem.name), fill="black", anchor="mm", font=font)
+                d.text((int(self.tile_size/2 - txtSizeX/2), int(self.tile_size/2 - txtSizeY/2)), str(elem.name), fill="black", anchor="mm", font=font)
                 self.troop_tiles.update({elem.value : txt})
         
         def save_image(self, path):
