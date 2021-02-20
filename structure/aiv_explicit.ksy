@@ -1,13 +1,19 @@
 meta:
   id: aiv
   title: AI Village
-  application: 
+  application:
     - Stronghold Crusader
     - Stronghold Crusader Extreme
     - Village
   file-extension: aiv
+  license: CC0-1.0
   endian: le
-  
+doc: |
+  The structure of the Stronghold Crusader AI Village file format is similar to
+  the one of the map file format. It consists of a directory, specifying
+  properties of the following data sections. Some sections are compressed using
+  blast compression, an implementation of which can be found at
+  https://github.com/ladislav-zezula/StormLib/tree/master/src/pklib.
 seq:
   - id: dir
     type: dir
@@ -43,8 +49,6 @@ seq:
     repeat-expr: 240
   - id: pause
     type: u4
-    
-    
 types:
   dir:  # directory
     seq:
@@ -81,15 +85,13 @@ types:
         repeat-expr: 100
       - id: padding1
         contents: [0x00, 0x00, 0x00, 0x00]
-
   uncompr_sec:  # uncompressed section
     params:
       - id: i
         type: u4
     seq:
       - id: data
-        size: _root.dir.uncompr_size[i] 
-
+        size: _root.dir.uncompr_size[i]
   compr_sec:    # compressed section
     seq:
       - id: uncompr_size

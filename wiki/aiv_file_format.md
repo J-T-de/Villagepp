@@ -96,4 +96,4 @@ Map, where the rally points specified in `tarr` are visualized for the editor. I
 
 ## pause
 
-Specifies the pause of pause_step.
+Specifies the pause done in each step of parr.
