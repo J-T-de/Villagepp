@@ -218,6 +218,13 @@ class Villagepp(tk.Tk):
             y = (y - y0)//self.tile_size
             return (x, y)
 
+        def get_building_origin_from_timestep(self, timestep):
+            for x in range(0, AIV_SIZE):
+                for y in range(0, AIV_SIZE):
+                    if(self.parent.aiv.bmap_step[y, x] == timestep):
+                        return (x, y)
+            raise ValueError("Timestep not found in map!")
+
         def on_click(self, e):
             self.last_mouse_pos = (e.x, e.y)
             (x, y) = self.last_mouse_pos
@@ -244,15 +251,20 @@ class Villagepp(tk.Tk):
                     self.redraw_partially((x, y), (1, 1))
                 elif(kind == "DeleteBuilding"):
                     (xDelete, yDelete) = position
-                    buildingId = self.parent.aiv.bmap_id[yDelete, xDelete]
-                    buildingId = BuildingId(buildingId).name
-                    building = Building(buildingId)
-                    self.parent.aiv.building_remove(position)
+                    (xOrigin, yOrigin) = self.get_building_origin_from_timestep(self.parent.aiv.bmap_step[yDelete, xDelete])
+                    del_building_id = self.parent.aiv.bmap_id[yOrigin, xOrigin]
+                    if(del_building_id != BuildingId.NOTHING):
+                        #delete building in aiv
+                        self.parent.aiv.building_remove((xOrigin, yOrigin))
 
-                    (xSize, ySize) = building.mask_full().shape
-                    #increase size that is redrawn, since the mouse could also click on the lower right of the building
-                    self.redraw_partially((x - xSize*self.tile_size, y - ySize*self.tile_size), (2*xSize, 2*ySize))
-                    pass
+                        #redraw map
+                        del_building_name = BuildingId(del_building_id).name
+                        building = Building(del_building_name)
+                        (ySize, xSize) = building.mask_full().shape
+
+                        (xMapOrigin, yMapOrigin) = self.origin
+                        self.redraw_partially((xOrigin*self.tile_size + xMapOrigin, yOrigin*self.tile_size + yMapOrigin), (xSize, ySize))
+
                 #TODO WALL - when the aiv-functions are implemented it 'should' work
                 #elif(kind == "WallLike"):
                 #    if(self.wall_origin != None):
@@ -512,6 +524,7 @@ class Villagepp(tk.Tk):
 
 
         def redraw_partially(self, origin, size):
+            #origin is in pixels, size is in tiles. dont question my choices!
             (x0, y0) = self.coordinate(origin)
             (x_size, y_size) = size
 
