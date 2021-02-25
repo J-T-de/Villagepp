@@ -245,10 +245,8 @@ class Villagepp(tk.Tk):
                 elif(kind == "Unit"):
                     unitId = self.selected[1]
                     self.parent.aiv.troop_place(unitId, position)
-                    self.redraw_partially((x, y), (1, 1))
                 elif(kind == "DeleteUnit"):
                     self.parent.aiv.troop_remove(position)
-                    self.redraw_partially((x, y), (1, 1))
                 elif(kind == "DeleteBuilding"):
                     (xDelete, yDelete) = position
                     (xOrigin, yOrigin) = self.get_building_origin_from_timestep(self.parent.aiv.bmap_step[yDelete, xDelete])
@@ -275,6 +273,21 @@ class Villagepp(tk.Tk):
                 #    else:
                 #        #on first click: save current position as wall origin
                 #        self.wall_origin = position
+
+                if(kind == "Unit" or kind == "DeleteUnit"):
+                    #redraw building on which the unit was placed/deleted to redraw name of building
+                    (xDelete, yDelete) = position
+                    (xOrigin, yOrigin) = self.get_building_origin_from_timestep(self.parent.aiv.bmap_step[yDelete, xDelete])
+                    building_id = self.parent.aiv.bmap_id[yOrigin, xOrigin] #possible building on that the unit stood
+                    if(building_id != BuildingId.NOTHING):
+                        #redraw map
+                        building_name = BuildingId(building_id).name
+                        building = Building(building_name)
+                        (ySize, xSize) = building.mask_full().shape
+                        (xMapOrigin, yMapOrigin) = self.origin
+                        self.redraw_partially((xOrigin*self.tile_size + xMapOrigin, yOrigin*self.tile_size + yMapOrigin), (xSize, ySize))
+                    else:
+                        self.redraw_partially((x, y), (1, 1))
 
                 self.update_screen()
 
@@ -550,15 +563,15 @@ class Villagepp(tk.Tk):
                     if(self.parent.aiv.bmap_step[y, x] >= self.parent.aiv.step_cur):
                         buildingSurface.putalpha(127)
                     self.surface.paste(buildingSurface, (x*self.tile_size, y*self.tile_size))
-                    if(self.parent.aiv.bmap_tile[y, x] == 1):
+                    if(self.parent.aiv.bmap_tile[y, x] != 0):
                         namePositions.append((x,y))
-                    troopId = self.parent.aiv.tmap[y, x]
-                    if(troopId != 0):
-                        troopTile = self.troop_tiles[troopId]
-
-                        background = self.surface.crop((x*self.tile_size, y*self.tile_size, (x+1)*self.tile_size, (y+1)*self.tile_size))
-                        newMapTile = Image.alpha_composite(background, troopTile)
-                        self.surface.paste(newMapTile, (x*self.tile_size, y*self.tile_size))
+            #get building origin (left upper corner)
+            nameOrigins = []
+            for (x, y) in namePositions:
+                (xBuildingOrigin, yBuildingOrigin) = self.get_building_origin_from_timestep(self.parent.aiv.bmap_step[y, x])
+                nameOrigins.append((xBuildingOrigin, yBuildingOrigin))
+            #remove duplicates in positions
+            namePositions = list(dict.fromkeys(nameOrigins))
             for (x, y) in namePositions:
                 buildingId = self.parent.aiv.bmap_id[y, x]
                 buildingName = BuildingId(buildingId).name
@@ -570,8 +583,10 @@ class Villagepp(tk.Tk):
 
                 #blank image for text, transparent
                 txtTile = Image.new("RGBA", (buildingSize*self.tile_size, buildingSize*self.tile_size), (255, 255, 255, 0))
-                #get a drawing context from blank image
+                #get a drawing context to the image that's drawn on
                 d = ImageDraw.Draw(txtTile)
+                #add rectangle around text
+                d.rectangle([int(buildingSize*self.tile_size/2 - txtSizeX/2), int(buildingSize*self.tile_size/2 - txtSizeY/2), int(buildingSize*self.tile_size/2 + txtSizeX/2), int(buildingSize*self.tile_size/2 + txtSizeY/2)], fill=(255, 255, 255, 255), width=0)
                 #draw text to image
                 d.text((int(buildingSize*self.tile_size/2 - txtSizeX/2), int(buildingSize*self.tile_size/2 - txtSizeY/2)), str(buildingName), fill="black", anchor="mm", font=font)
 
@@ -579,6 +594,17 @@ class Villagepp(tk.Tk):
                 newMapTile = Image.alpha_composite(background, txtTile)
 
                 self.surface.paste(newMapTile, (x*self.tile_size, y*self.tile_size))
+
+            #draw troops after names to see their names better
+            for x in range(x0, x_max):
+                for y in range(y0, y_max):
+                    troopId = self.parent.aiv.tmap[y, x]
+                    if(troopId != 0):
+                        troopTile = self.troop_tiles[troopId]
+
+                        background = self.surface.crop((x*self.tile_size, y*self.tile_size, (x+1)*self.tile_size, (y+1)*self.tile_size))
+                        newMapTile = Image.alpha_composite(background, troopTile)
+                        self.surface.paste(newMapTile, (x*self.tile_size, y*self.tile_size))
 
 
         def redraw_surface(self): #redraws the map-surface, but not the screen
@@ -731,8 +757,12 @@ class Villagepp(tk.Tk):
                 font = ImageFont.load_default()
                 (txtSizeX, txtSizeY) = font.getsize(str(elem.name))
 
-                #get a drawing context from blank image
+                #get a drawing context to the image that's drawn on
                 d = ImageDraw.Draw(txt)
+
+                #add rectangle around text
+                d.rectangle([int(self.tile_size/2 - txtSizeX/2), int(self.tile_size/2 - txtSizeY/2), int(self.tile_size/2 + txtSizeX/2), int(self.tile_size/2 + txtSizeY/2)], fill=(255, 255, 255, 255), width=0)
+
                 #draw text to image
                 d.text((int(self.tile_size/2 - txtSizeX/2), int(self.tile_size/2 - txtSizeY/2)), str(elem.name), fill="black", anchor="mm", font=font)
                 self.troop_tiles.update({elem.value : txt})
