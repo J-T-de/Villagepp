@@ -3,6 +3,7 @@ from sys import exit
 import tkinter as tk
 import tkinter.filedialog as fd
 import tkinter.messagebox as mb
+import copy
 
 from PIL import ImageFont, ImageDraw, ImageTk, Image
 
@@ -146,6 +147,7 @@ class Villagepp(tk.Tk):
             #dictionaries, building/troop-id as key, corresponding tiles (of type Image) as value
             self.loaded_building_tiles = {}
             self.building_tiles = {}
+            self.blended_building_tiles = {}
             self.troop_tiles = {}
             self.load_tileset("res/tiles.bmp")
 
@@ -155,18 +157,21 @@ class Villagepp(tk.Tk):
 
             self.wall_origin = None
 
-            self.surface = Image.new("RGBA", (self.tile_size*AIV_DEFAULT_SIZE, self.tile_size*AIV_DEFAULT_SIZE), (0, 0, 0, 255))
-            self.redraw_surface()
-
             #size of whole editor
             self.screen_size = (self.canvas.winfo_width(), self.canvas.winfo_height())
-            self.update_screenTSize()
+
+            self.surface = Image.new("RGBA", (self.tile_size*AIV_DEFAULT_SIZE, self.tile_size*AIV_DEFAULT_SIZE), (0, 0, 0, 255))
 
             blackground = Image.new("RGB", self.screen_size, (0, 0, 0))
             blackground.paste(self.surface, self.origin)
 
             self.screen = ImageTk.PhotoImage(blackground)
             self.canvas.create_image(0, 0, image=self.screen, anchor=tk.NW)
+
+            self.surface = Image.new("RGBA", (self.tile_size*AIV_DEFAULT_SIZE, self.tile_size*AIV_DEFAULT_SIZE), (0, 0, 0, 255))
+            self.update_screenTSize()
+            self.redraw_surface()
+            print(self.screenTSize)
 
         def update_screenTSize(self):
             (frame_width, frame_height) = self.screen_size
@@ -555,16 +560,17 @@ class Villagepp(tk.Tk):
             for x in range(x0, x_max):
                 for y in range(y0, y_max):
                     buildingId = self.parent.aiv.bmap_id[y, x]
+                    buildingStep = self.parent.aiv.bmap_step[y, x]
                     buildingSurface = None
                     #grass
                     if(buildingId == BuildingId.NOTHING):
-                        buildingSurface = self.building_tiles[buildingId][self.parent.aiv.gmap[y, x]]
+                        buildingSurface = copy.deepcopy(self.building_tiles[buildingId][self.parent.aiv.gmap[y, x]])
                     #moat or pitch or any other tile that doesn't have an orientation - walls?
                     elif(buildingId < 30):
-                        buildingSurface = self.building_tiles[buildingId]
+                        buildingSurface = copy.deepcopy(self.building_tiles[buildingId])
                     else:
-                        buildingSurface = self.building_tiles[buildingId][self.parent.aiv.bmap_tile[y, x]]
-                    if(self.parent.aiv.bmap_step[y, x] >= self.parent.aiv.step_cur):
+                        buildingSurface = copy.deepcopy(self.building_tiles[buildingId][self.parent.aiv.bmap_tile[y, x]])
+                    if(self.parent.aiv.bmap_step[y, x] > self.parent.aiv.step_cur):
                         buildingSurface.putalpha(127)
                     self.surface.paste(buildingSurface, (x*self.tile_size, y*self.tile_size))
                     if(self.parent.aiv.bmap_tile[y, x] != 0):
@@ -613,55 +619,56 @@ class Villagepp(tk.Tk):
 
         def redraw_surface(self): #redraws the map-surface, but not the screen
             self.surface = Image.new("RGBA", (self.tile_size*AIV_DEFAULT_SIZE, self.tile_size*AIV_DEFAULT_SIZE), (0, 0, 0, 255))
-            namePositions = []
-            for x in range(0, AIV_DEFAULT_SIZE): 
-                for y in range(0, AIV_DEFAULT_SIZE):
-                    buildingId = self.parent.aiv.bmap_id[y, x]
-                    buildingSurface = None
-                    #grass
-                    if(buildingId == BuildingId.NOTHING):
-                        buildingSurface = self.building_tiles[buildingId][self.parent.aiv.gmap[y, x]]
-                    #moat or pitch or any other tile that doesn't have an orientation - walls?
-                    elif(buildingId < 30):
-                        buildingSurface = self.building_tiles[buildingId]
-                    else:
-                        buildingSurface = self.building_tiles[buildingId][self.parent.aiv.bmap_tile[y, x]]
-                    if(self.parent.aiv.bmap_step[y, x] >= self.parent.aiv.step_cur):
-                        buildingSurface.putalpha(127)
-                    self.surface.paste(buildingSurface, (x*self.tile_size, y*self.tile_size))
-                    if(self.parent.aiv.bmap_tile[y, x] == 1):
-                        namePositions.append((x,y))
-
-                    #draw troops "above" buildings
-                    troopId = self.parent.aiv.tmap[y, x]
-                    if(troopId != 0):
-                        troopTile = self.troop_tiles[troopId]
-
-                        background = self.surface.crop((x*self.tile_size, y*self.tile_size, (x+1)*self.tile_size, (y+1)*self.tile_size))
-                        newMapTile = Image.alpha_composite(background, troopTile)
-                        self.surface.paste(newMapTile, (x*self.tile_size, y*self.tile_size))
-            #        for pos in namePositions:
-            #            (x, y) = pos
-            #            size = self.parent.aiv.bmap_size[y, x]
-            #
-            #            #for nice transparent text: crop underlying map, alpha_composite with text-image, then paste back to map
-            #
-            # #           #crop building
-            # #           im = inputBMP.crop((left, upper, right, lower))
-            # #           #TODO: buildings of size 2 might not get properly cropped, but atm they don't even have text since they have no tile with bmap_tile == 1
-            # #           left = x - (size-1)/2
-            # #           upper = y - (size-1)/2
-            # #           building = self.surface.crop((left, upper, right, lower))
-            #
-            #            #blank image for text, transparent
-            #            txt = Image.new("RGBA", (self.tile_size*size, self.tile_size*size), (0, 0, 255, 0))
-            #            #get a font
-            #            font = ImageFont.load_default()
-            #            #get a drawing context from blank image
-            #            d = ImageDraw.Draw(txt)
-            #            #draw text to image
-            #            d.text(((self.tile_size*size)//2, (self.tile_size*size)//2), str(BuildingId(self.parent.aiv.bmap_id[y, x]).name), fill="black", anchor="mm", font=font)
-            #            self.surface.paste(txt, (x*self.tile_size, y*self.tile_size))
+            self.redraw_partially(self.origin, (AIV_DEFAULT_SIZE, AIV_DEFAULT_SIZE))
+#            namePositions = []
+#            for x in range(0, AIV_DEFAULT_SIZE):
+#                for y in range(0, AIV_DEFAULT_SIZE):
+#                    buildingId = self.parent.aiv.bmap_id[y, x]
+#                    buildingSurface = None
+#                    #grass
+#                    if(buildingId == BuildingId.NOTHING):
+#                        buildingSurface = self.building_tiles[buildingId][self.parent.aiv.gmap[y, x]]
+#                    #moat or pitch or any other tile that doesn't have an orientation - walls?
+#                    elif(buildingId < 30):
+#                        buildingSurface = self.building_tiles[buildingId]
+#                    else:
+#                        buildingSurface = self.building_tiles[buildingId][self.parent.aiv.bmap_tile[y, x]]
+#                    if(self.parent.aiv.bmap_step[y, x] > self.parent.aiv.step_cur):
+#                        buildingSurface.putalpha(127)
+#                    self.surface.paste(buildingSurface, (x*self.tile_size, y*self.tile_size))
+#                    if(self.parent.aiv.bmap_tile[y, x] == 1):
+#                        namePositions.append((x,y))
+#
+#                    #draw troops "above" buildings
+#                    troopId = self.parent.aiv.tmap[y, x]
+#                    if(troopId != 0):
+#                        troopTile = self.troop_tiles[troopId]
+#
+#                        background = self.surface.crop((x*self.tile_size, y*self.tile_size, (x+1)*self.tile_size, (y+1)*self.tile_size))
+#                        newMapTile = Image.alpha_composite(background, troopTile)
+#                        self.surface.paste(newMapTile, (x*self.tile_size, y*self.tile_size))
+#            #        for pos in namePositions:
+#            #            (x, y) = pos
+#            #            size = self.parent.aiv.bmap_size[y, x]
+#            #
+#            #            #for nice transparent text: crop underlying map, alpha_composite with text-image, then paste back to map
+#            #
+#            # #           #crop building
+#            # #           im = inputBMP.crop((left, upper, right, lower))
+#            # #           #TODO: buildings of size 2 might not get properly cropped, but atm they don't even have text since they have no tile with bmap_tile == 1
+#            # #           left = x - (size-1)/2
+#            # #           upper = y - (size-1)/2
+#            # #           building = self.surface.crop((left, upper, right, lower))
+#            #
+#            #            #blank image for text, transparent
+#            #            txt = Image.new("RGBA", (self.tile_size*size, self.tile_size*size), (0, 0, 255, 0))
+#            #            #get a font
+#            #            font = ImageFont.load_default()
+#            #            #get a drawing context from blank image
+#            #            d = ImageDraw.Draw(txt)
+#            #            #draw text to image
+#            #            d.text(((self.tile_size*size)//2, (self.tile_size*size)//2), str(BuildingId(self.parent.aiv.bmap_id[y, x]).name), fill="black", anchor="mm", font=font)
+#            #            self.surface.paste(txt, (x*self.tile_size, y*self.tile_size))
 
         def get_input_tile(self, x, y, inputBMP):
             originOffset = 1 #first tile offset in x/y-direction
@@ -707,50 +714,68 @@ class Villagepp(tk.Tk):
             rawBMP.putalpha(255)
             for elem in BuildingId:
                 imageList = []
+                blendedList = []
                 # grass
                 if(elem.value == BuildingId.NOTHING):
                     for variation in range(0, 8):
                         imageList.append(self.get_input_tile(8, variation, rawBMP))
+                        blendedList.append(self.get_input_tile(8, variation, rawBMP).putalpha(127))
                 # border
                 elif(elem.value == BuildingId.BORDER_TILE):
                     imageList = self.get_input_tile(9, 9, rawBMP)
+                    blendedList = self.get_input_tile(9, 9, rawBMP).putalpha(127)
                 # auto
                 elif(elem.value == BuildingId.AUTO):
                     imageList = self.get_input_tile(9, 8, rawBMP)
+                    blendedList = self.get_input_tile(9, 8, rawBMP).putalpha(127)
                 # walls    
                 elif(elem.value == BuildingId.HIGH_WALL):
                     imageList = self.get_input_tile(5, 0, rawBMP)
+                    blendedList = self.get_input_tile(5, 0, rawBMP).putalpha(127)
                 elif(elem.value == BuildingId.LOW_WALL):
                     imageList = self.get_input_tile(7, 0, rawBMP)
+                    blendedList = self.get_input_tile(7, 0, rawBMP).putalpha(127)
                 elif(elem.value == BuildingId.HIGH_CRENEL):
                     imageList = self.get_input_tile(4, 0, rawBMP)
+                    blendedList = self.get_input_tile(4, 0, rawBMP).putalpha(127)
                 elif(elem.value == BuildingId.LOW_CRENEL):
                     imageList = self.get_input_tile(6, 0, rawBMP)
+                    blendedList = self.get_input_tile(6, 0, rawBMP).putalpha(127)
                 #stairs
                 elif(elem.value == BuildingId.STAIRS_1):
                     imageList = self.get_input_tile(9, 0, rawBMP)
+                    blendedList = self.get_input_tile(9, 0, rawBMP).putalpha(127)
                 elif(elem.value == BuildingId.STAIRS_2):
                     imageList = self.get_input_tile(9, 1, rawBMP)
+                    blendedList = self.get_input_tile(9, 1, rawBMP).putalpha(127)
                 elif(elem.value == BuildingId.STAIRS_3):
                     imageList = self.get_input_tile(9, 2, rawBMP)
+                    blendedList = self.get_input_tile(9, 2, rawBMP).putalpha(127)
                 elif(elem.value == BuildingId.STAIRS_4):
                     imageList = self.get_input_tile(9, 3, rawBMP)
+                    blendedList = self.get_input_tile(9, 3, rawBMP).putalpha(127)
                 elif(elem.value == BuildingId.STAIRS_5):
                     imageList = self.get_input_tile(9, 4, rawBMP)
+                    blendedList = self.get_input_tile(9, 4, rawBMP).putalpha(127)
                 elif(elem.value == BuildingId.STAIRS_6):
                     imageList = self.get_input_tile(9, 5, rawBMP)
+                    blendedList = self.get_input_tile(9, 5, rawBMP).putalpha(127)
                 # moat
                 elif(elem.value == BuildingId.MOAT):
                     imageList = self.get_input_tile(8, 8, rawBMP)
+                    blendedList = self.get_input_tile(8, 8, rawBMP).putalpha(127)
                 # pitch
                 elif(elem.value == BuildingId.PITCH):
                     imageList = self.get_input_tile(8, 9, rawBMP)
+                    blendedList = self.get_input_tile(8, 9, rawBMP).putalpha(127)
                 # else
                 else:
                     for variation in range(0, 10): #10 different tile-orientations for each color
-                        #imageList.append(self.get_input_tile((elem.value-30)//10, variation, rawBMP))
                         imageList.append(self.get_input_tile(elem.value//10 - 3, variation, rawBMP))
+                        blendedList.append(self.get_input_tile(elem.value//10 - 3, variation, rawBMP).putalpha(127))
+
                 self.loaded_building_tiles.update({elem.value : imageList})
+                self.blended_building_tiles.update({elem.value : blendedList})
             self.building_tiles = self.loaded_building_tiles
             
             for elem in TroopId:
@@ -999,7 +1024,7 @@ class Villagepp(tk.Tk):
         if e != None:
             self.aiv.step_cur = int(e)
             # print("step_set: ", self.aiv.step_cur, "/", self.aiv.step_tot)
-            self.map.redraw_surface()
+            self.map.redraw_partially(self.map.origin, self.map.screenTSize)
             self.map.update_screen()
             return
         self.navbar = self.Navbar(self.frame_navbar, self)
