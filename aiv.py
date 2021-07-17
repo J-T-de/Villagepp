@@ -796,7 +796,7 @@ class Aiv(object):
         raise NotImplementedError
 
 
-    def wall_build(self, type, pos1, pos2, thickness=1):
+    def wall_place(self, type, pos1, pos2, thickness=1):
         """
         builds a wall of type from pos1 to pos2 with thickness
         """
