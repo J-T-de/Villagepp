@@ -768,9 +768,9 @@ class Aiv(object):
                 err += dx
                 y0 += sy
 
-        print(mask)
-
         return (origin, mask[origin[1]:origin[1]+ abs(dy) + 1, origin[0]:origin[0] + abs(dx) + 1])
+
+
 
     def _bresenham_stairs(self, height, pos_start, pos_end):
         """
@@ -832,7 +832,7 @@ class Aiv(object):
                         return False
         return True
 
-    def wall_mask(self, building, pos_start, pos_end, thickness=1):
+    def wall_mask(self, pos_start, pos_end, thickness=1):
         """
         builds a wall of type building from pos1 to pos2 with thickness
         """

@@ -144,17 +144,18 @@ class Villagepp(tk.Tk):
 
             self.tile_size = 32
             self.shadow = None
+            self.wall_shadow_origin = None #shadow/surface origin of wall-like in map/tile-coordinates
+            self.wall_origin = None #real origin of wall-like structure in map/tile-coordinates
             #dictionaries, building/troop-id as key, corresponding tiles (of type Image) as value
             self.loaded_building_tiles = {}
             self.building_tiles = {}
             self.troop_tiles = {}
             self.load_tileset("res/tiles.bmp")
 
+
             self.origin = (0,0) #in pixel
             self.last_mouse_pos = (0,0)
             self.selected = None
-
-            self.wall_origin = None
 
             #size of whole editor
             self.screen_size = (self.canvas.winfo_width(), self.canvas.winfo_height())
@@ -212,6 +213,7 @@ class Villagepp(tk.Tk):
         def deselect(self, e):
             self.selected = None
             self.wall_origin = None
+            self.wall_shadow_origin = None
             self.last_mouse_pos = (e.x, e.y)
             self.update_shadow()
             self.update_screen()
@@ -270,13 +272,13 @@ class Villagepp(tk.Tk):
                         (xMapOrigin, yMapOrigin) = self.origin
                         self.redraw_partially((xOrigin*self.tile_size + xMapOrigin, yOrigin*self.tile_size + yMapOrigin), (xSize, ySize))
 
-                # TODO WALL - when the aiv-functions are implemented it 'should' work
+                # TODO WALL
                 elif(kind == "WallLike"):
                     buildingId = self.selected[1]
                     building = Building(buildingId)
 
                     if(self.wall_origin != None):
-                    #on second click: build wall/whatevs from wall_origin to current position
+                        #on second click: build wall/whatevs from wall_origin to current position
                         if(self.parent.aiv.wall_isplaceable(self.wall_origin, position)):
                             self.parent.aiv.wall_place(building, self.wall_origin, position)
                             self.wall_origin = None #reset status of wallplacement
@@ -341,28 +343,28 @@ class Villagepp(tk.Tk):
                 elif(kind == "DeleteUnit" or kind == "DeleteBuilding"):
                     shadow = Image.new("RGBA", tile_size, (255, 0, 0, 127))
                 #TODO WALL
-                #shit. the shadow is direction dependent.
-                #depends on how the mask is generated - if the mask is generated 'correctly' nothing has to be changed here but only the origin of the shadow has to be changed
-                #elif(kind == "WallLike"):
-                #    if(self.wall_origin != None):
-                #        buildable = self.parent.aiv.wall_isplaceable(self.wall_origin, tile_position)
-                #
-                #        tile = None
-                #        if(buildable == True):
-                #            tile = Image.new("RGBA", tile_size, (0, 255, 0, 127))
-                #        else:
-                #            tile = Image.new("RGBA", tile_size, (255, 0, 0, 127))
-                #
-                #        mask = self.parent.aiv.wall_like_mask(self.wall_origin, tile_position)
-                #        (y_size, x_size) = mask.shape
-                #
-                #        shadow = Image.new("RGBA", (x_size*self.tile_size, y_size*self.tile_size), (0, 0, 0, 0))
-                #        for x in range(x_size):
-                #            for y in range(y_size):
-                #                if(mask[y, x] == 1):
-                #                    shadow.paste(tile, (x*self.tile_size, y*self.tile_size))
-                #    else:
-                #        shadow = None #don't draw shadow if there is no wall_origin
+                elif(kind == "WallLike"):
+                    if(self.wall_origin != None):
+                        buildable = self.parent.aiv.wall_isplaceable(self.wall_origin, tile_position)
+                
+                        tile = None
+                        if(buildable == True):
+                            tile = Image.new("RGBA", tile_size, (0, 255, 0, 127))
+                        else:
+                            tile = Image.new("RGBA", tile_size, (255, 0, 0, 127))
+                
+                        ((x_shadow, y_shadow), mask) = self.parent.aiv.wall_mask(self.wall_origin, tile_position)
+                        self.wall_shadow_origin = (x_shadow, y_shadow)
+                        (y_size, x_size) = mask.shape
+                
+                        shadow = Image.new("RGBA", (x_size*self.tile_size, y_size*self.tile_size), (0, 0, 0, 0))
+                        for x in range(x_size):
+                            for y in range(y_size):
+                                if(mask[y, x] == 1):
+                                    shadow.paste(tile, (x*self.tile_size, y*self.tile_size))
+                    else:
+                        shadow = None #don't draw shadow if there is no wall_origin
+                        self.wall_shadow_origin = None
 
             self.shadow = shadow
 
@@ -435,40 +437,26 @@ class Villagepp(tk.Tk):
 
             if(self.shadow != None):
                 if(self.selected[0] == "WallLike"):
-                    pass
-                    #TODO WALL - comment in
-                    #(xOrigin, yOrigin) = self.wall_origin
-                    #(xEnd, yEnd) = self.coordinate(self.last_mouse_pos)
+                    #TODO WALL
+                    (xOrigin, yOrigin) = self.wall_shadow_origin
 
-                    #x_map_shadow_origin = 0
-                    #y_map_shadow_origin = 0
+                    (xSize, ySize) = self.shadow.size #in pixel
+                    xEnd = xOrigin*self.tile_size + xSize
+                    yEnd = yOrigin*self.tile_size + ySize
 
-                    #x_map_shadow_end = 0
-                    #y_map_shadow_end = 0
+                    xSize = xSize // self.tile_size
+                    ySize = ySize // self.tile_size
 
-                    #if(xEnd >= xOrigin):
-                    #    x_map_shadow_origin = xOrigin*self.tile_size
-                    #    x_map_shadow_end = xEnd*self.tile_size
-                    #elif(xEnd < xOrigin):
-                    #    x_map_shadow_origin = xEnd*self.tile_size
-                    #    x_map_shadow_end = xOrigin*self.tile_size
-                    #elif(yEnd >= yOrigin):
-                    #    y_map_shadow_origin = yOrigin*self.tile_size
-                    #    y_map_shadow_end = yEnd*self.tile_size
-                    #elif(yEnd < yOrigin):
-                    #    y_map_shadow_origin = yEnd*self.tile_size
-                    #    y_map_shadow_end = yOrigin*self.tile_size
+                    background = self.surface.crop((xOrigin*self.tile_size, yOrigin*self.tile_size, xEnd, yEnd))
 
-                    #background = self.surface.crop((x_map_shadow_origin, y_map_shadow_origin), (x_map_shadow_end, y_map_shadow_end))
+                    (x0, y0) = self.origin #in pixel
+                    x_screen_pos = xOrigin*self.tile_size + x0
+                    y_screen_pos = yOrigin*self.tile_size + y0
+                    screen_position = (x_screen_pos, y_screen_pos)
 
-                    #(x0, y0) = self.origin
-                    #x_screen_pos = x_map_shadow_origin + x0
-                    #y_screen_pos = y_map_shadow_origin + y0
-                    #screen_position = (x_screen_pos, y_screen_pos)
+                    screen_shadow = Image.alpha_composite(background, self.shadow)
 
-                    #screen_shadow = Image.alpha_composite(background, self.shadow)
-
-                    #self.screen.paste(screen_shadow, screen_position)
+                    self.screen.paste(screen_shadow, screen_position)
 
                 else:
                     (x_tile, y_tile) = self.coordinate(self.last_mouse_pos)
@@ -561,7 +549,6 @@ class Villagepp(tk.Tk):
             for x in range(x0, x_max):
                 for y in range(y0, y_max):
                     buildingId = self.parent.aiv.bmap_id[y, x]
-                    buildingStep = self.parent.aiv.bmap_step[y, x]
                     buildingSurface = None
                     #grass
                     if(buildingId == BuildingId.NOTHING):
