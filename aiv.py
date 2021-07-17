@@ -716,74 +716,45 @@ class Aiv(object):
         """
         raise NotImplementedError
 
-    def _brasenham(self, pos_start, pos_end):
+    def _bresenham(self, pos_start, pos_end):
         """
-        implements brasenham algorithm for line drawing
+        implements bresenham algorithm for line drawing (from wikipedia)
         """
-        raise NotImplementedError
-    #     def plot_low(self, pos_start, pos_end):
-    #         x0, y0 = pos_start
-    #         x1, y1 = pos_end
+        x0, y0 = pos_start
+        x1, y1 = pos_end
 
-    #         dx = x1 - x0
-    #         dy = y1 - y0
+        origin = (min(x0,x1), min(y0,y1))
+        mask = np.zeros((self.aiv_size, self.aiv_size))
+        
+        dx =  abs(x1-x0)
+        if x0 < x1:
+            sx =1
+        else:
+            sx = -1
+    
+        dy = -abs(y1-y0)
+        if y0 < y1:
+            sy = 1
+        else:
+            sy = -1
+        
+        err = dx + dy
+        test = list()
 
-    #         yi = 1
+        while True:
+            mask[x0, y0] = 1
+            if x0 == x1 and y0 == y1:
+                break
 
-    #         if dy < 0:
-    #             yi = -1
-    #             dy = -dy
+            e2 = 2*err
+            if (e2 >= dy):
+                err += dy
+                x0 += sx
+            if (e2 <= dx):
+                err += dx
+                y0 += sy
 
-    #         D = 2 * dy - dx
-    #         y = y0
-
-    #         for x in range(x0, x1+1):
-    #             plot(x, y)
-
-    #             if D > 0:
-    #                 y += yi
-    #                 D += 2 * (dy - dx)
-    #             else:
-    #                 D += 2 * dy
-
-    #     def plot_high(self, pos_start, pos_end):
-    #         x0, y0 = pos_start
-    #         x1, y1 = pos_end
-
-    #         dx = x1 - x0
-    #         dy = y1 - y0
-
-    #         yi = 1
-
-    #         if dy < 0:
-    #             yi = -1
-    #             dy = -dy
-
-    #         D = 2 * dy - dx
-    #         y = y0
-
-    #         for x in range(x0, x1+1):
-    #             plot(x, y)
-
-    #             if D > 0:
-    #                 y += yi
-    #                 D += 2 * (dy - dx)
-    #             else:
-    #                 D += 2 * dy
-
-    #     x0, y0 = pos_start
-    #     x1, y1 = pos_end
-
-    #     if abs(y1 - y0) < abs(x1 - x0):
-    #         if x0 > x1:
-    #             plot_low()
-    #         else:
-    #             plot_high()
-    #     else:
-    #         if y0 > y1:
-    #             plot_high()
-    #         else:
-    #             plot_high()
+        return (origin, mask[origin[0]:origin[0] + abs(dx) + 1, origin[1]:origin[1]+ abs(dy) + 1])
         
 
     def wall_isplaceable(self, pos_start, pos_end, thickness=1):
@@ -793,18 +764,49 @@ class Aiv(object):
         if thickness != 1:
             raise NotImplementedError
 
-        raise NotImplementedError
+        (x_pos, y_pos), m = self._bresenham(pos_start, pos_end)
+        y_size, x_size = m.shape
 
+        if x_pos < 0 or x_pos + x_size > self.aiv_size or y_pos < 0 or y_pos + y_size > self.aiv_size:
+            return False
 
-    def wall_place(self, type, pos1, pos2, thickness=1):
+        for x in range(0, x_size):
+            for y in range(0, y_size):
+                if m[y,x] == 1:
+                    if self.bmap_id[y_pos+y, x_pos+x] != 0:
+                        return False
+        return True
+
+    def wall_place(self, type, pos_start, pos_end, thickness=1):
         """
         builds a wall of type from pos1 to pos2 with thickness
         """
         if thickness != 1:
             raise NotImplementedError
 
-        raise NotImplementedError
+        if not self.wall_isplaceable(pos_start, pos_end, thickness=1):
+            return
 
+        # Update current step and total steps
+        self.step_cur += 1
+        self.step_tot += 1
+
+        # all later steps +1
+        for x in range(0, self.aiv_size):
+            for y in range(0, self.aiv_size):
+                if (self.bmap_step[y, x] >= self.step_cur):
+                    self.bmap_step[y, x] += 1
+
+        # Update bmap_id and bmap_step 
+        (x_pos, y_pos), m = self._bresenham(pos_start, pos_end)
+        y_size, x_size = m.shape
+
+        for x in range(0,x_size):
+            for y in range(0,y_size):
+                self.bmap_id[y_pos+y, x_pos+x]      += type.id * m[y,x]
+                self.bmap_step[y_pos+y, x_pos+x]    += self.step_cur * m[y,x]
+                self.bmap_size[y_pos+y, x_pos+x]    += m[y,x]
+                self.bmap_tile[y_pos+y, x_pos+x]    += m[y,x]
 
     def build_stairs(self, pos1, pos2, height, extendend = False):
         """
