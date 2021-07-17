@@ -238,6 +238,7 @@ class Villagepp(tk.Tk):
 
                     if(self.parent.aiv.building_isplaceable(building, position)):
                         self.parent.aiv.building_place(building, position)
+                        self.parent.update_slider()
                         (y_size, x_size) = building.mask_full().shape
 
                         self.update_shadow()
