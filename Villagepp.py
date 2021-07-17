@@ -270,16 +270,19 @@ class Villagepp(tk.Tk):
                         (xMapOrigin, yMapOrigin) = self.origin
                         self.redraw_partially((xOrigin*self.tile_size + xMapOrigin, yOrigin*self.tile_size + yMapOrigin), (xSize, ySize))
 
-                #TODO WALL - when the aiv-functions are implemented it 'should' work
-                #elif(kind == "WallLike"):
-                #    if(self.wall_origin != None):
-                #        #on second click: build wall/whatevs from wall_origin to current position
-                #        if(self.parent.aiv.wall_isplaceable(self.wall_origin, position)):
-                #            self.parent.aiv.wall_place(buildingId, self.wall_origin, position)
-                #            self.wall_origin = None #reset status of wallplacement
-                #    else:
-                #        #on first click: save current position as wall origin
-                #        self.wall_origin = position
+                # TODO WALL - when the aiv-functions are implemented it 'should' work
+                elif(kind == "WallLike"):
+                    buildingId = self.selected[1]
+                    building = Building(buildingId)
+
+                    if(self.wall_origin != None):
+                    #on second click: build wall/whatevs from wall_origin to current position
+                        if(self.parent.aiv.wall_isplaceable(self.wall_origin, position)):
+                            self.parent.aiv.wall_place(building, self.wall_origin, position)
+                            self.wall_origin = None #reset status of wallplacement
+                    else:
+                        #on first click: save current position as wall origin
+                        self.wall_origin = position
 
                 if(kind == "Unit" or kind == "DeleteUnit"):
                     #redraw building on which the unit was placed/deleted to redraw name of building

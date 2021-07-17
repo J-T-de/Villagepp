@@ -777,9 +777,18 @@ class Aiv(object):
                         return False
         return True
 
-    def wall_place(self, type, pos_start, pos_end, thickness=1):
+    def wall_mask(self, building, pos_start, pos_end, thickness=1):
         """
-        builds a wall of type from pos1 to pos2 with thickness
+        builds a wall of type building from pos1 to pos2 with thickness
+        """
+        if thickness != 1:
+            raise NotImplementedError
+
+        return self._bresenham(pos_start, pos_end)
+        
+    def wall_place(self, building, pos_start, pos_end, thickness=1):
+        """
+        builds a wall of building from pos1 to pos2 with thickness
         """
         if thickness != 1:
             raise NotImplementedError
@@ -803,7 +812,7 @@ class Aiv(object):
 
         for x in range(0,x_size):
             for y in range(0,y_size):
-                self.bmap_id[y_pos+y, x_pos+x]      += type.id * m[y,x]
+                self.bmap_id[y_pos+y, x_pos+x]      += building.id * m[y,x]
                 self.bmap_step[y_pos+y, x_pos+x]    += self.step_cur * m[y,x]
                 self.bmap_size[y_pos+y, x_pos+x]    += m[y,x]
                 self.bmap_tile[y_pos+y, x_pos+x]    += m[y,x]
