@@ -732,6 +732,7 @@ class Villagepp(tk.Tk):
                 self.troop_tiles.update({elem.value : txt})
         
         def save_image(self, path):
+            self.redraw_surface()
             self.surface.save(path)
 
     class Navbar(tk.Frame):
