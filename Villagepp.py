@@ -159,16 +159,18 @@ class Villagepp(tk.Tk):
             self.redraw_surface()
 
             #size of whole editor
-            frame_width = self.canvas.winfo_width()
-            frame_height = self.canvas.winfo_height()
-            self.screenTSize = ((frame_width + self.tile_size - 1)//self.tile_size, (frame_height + self.tile_size - 1)//self.tile_size)
-            self.screen_size = (frame_width, frame_height)
+            self.screen_size = (self.canvas.winfo_width(), self.canvas.winfo_height())
+            self.update_screenTSize()
 
             blackground = Image.new("RGB", self.screen_size, (0, 0, 0))
             blackground.paste(self.surface, self.origin)
 
             self.screen = ImageTk.PhotoImage(blackground)
             self.canvas.create_image(0, 0, image=self.screen, anchor=tk.NW)
+
+        def update_screenTSize(self):
+            (frame_width, frame_height) = self.screen_size
+            self.screenTSize = ((frame_width + self.tile_size - 1)//self.tile_size + 1, (frame_height + self.tile_size - 1)//self.tile_size + 1)
 
         def zoom_out(self, e = None):
             (x0, y0) = self.origin #in units of pixel
@@ -178,10 +180,10 @@ class Villagepp(tk.Tk):
                 self.resize_tileset()
 
                 (frame_width, frame_height) = self.screen_size
-                #zoom_in out to center of the screen
+                #zoom_out to center of the screen
                 self.origin = (x0//2 + frame_width//4, y0//2 + frame_height//4)
 
-                self.screenTSize = ((frame_width + self.tile_size - 1)//self.tile_size, (frame_height + self.tile_size - 1)//self.tile_size)
+                self.update_screenTSize()
 
                 self.surface = Image.new("RGBA", (self.tile_size*AIV_DEFAULT_SIZE, self.tile_size*AIV_DEFAULT_SIZE), (0, 0, 0, 255))
                 self.redraw_partially((0,0), self.screenTSize)
@@ -189,15 +191,15 @@ class Villagepp(tk.Tk):
 
         def zoom_in(self, e = None):
             (x0, y0) = self.origin #in units of pixel
-            (frame_width, frame_height) = self.screen_size
 
             self.tile_size = self.tile_size*2
             self.resize_tileset()
 
+            (frame_width, frame_height) = self.screen_size
             #zoom_in on center of the screen
             self.origin = (x0*2 - frame_width//2, y0*2 - frame_height//2)
 
-            self.screenTSize = ((frame_width + self.tile_size - 1)//self.tile_size, (frame_height + self.tile_size - 1)//self.tile_size)
+            self.update_screenTSize()
 
 
             self.surface = Image.new("RGBA", (self.tile_size*AIV_DEFAULT_SIZE, self.tile_size*AIV_DEFAULT_SIZE), (0, 0, 0, 255))
@@ -255,6 +257,7 @@ class Villagepp(tk.Tk):
                     if(del_building_id != BuildingId.NOTHING):
                         #delete building in aiv
                         self.parent.aiv.building_remove((xOrigin, yOrigin))
+                        self.parent.update_slider()
 
                         #redraw map
                         del_building_name = BuildingId(del_building_id).name
@@ -418,7 +421,7 @@ class Villagepp(tk.Tk):
         def update_screen(self):
             frame_width = self.canvas.winfo_width()
             frame_height = self.canvas.winfo_height()
-            self.screenTSize = ((frame_width + self.tile_size - 1)//self.tile_size, (frame_height + self.tile_size - 1)//self.tile_size)
+            self.update_screenTSize()
             self.screen_size = (frame_width, frame_height)
 
             self.screen = Image.new("RGBA", self.screen_size, (0, 0, 127, 255))
@@ -485,7 +488,7 @@ class Villagepp(tk.Tk):
         def on_resize(self, e):
             frame_width = self.canvas.winfo_width()
             frame_height = self.canvas.winfo_height()
-            self.screenTSize = ((frame_width + self.tile_size - 1)//self.tile_size, (frame_height + self.tile_size - 1)//self.tile_size)
+            self.update_screenTSize()
             self.screen_size = (frame_width, frame_height)
 
             self.redraw_partially(self.origin, self.screenTSize)
