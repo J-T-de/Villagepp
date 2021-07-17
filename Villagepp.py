@@ -776,7 +776,7 @@ class Villagepp(tk.Tk):
 
             self.button_firs    = tk.Button(frame_parent, text = "|<",  command = parent.step_first)
             self.button_prev    = tk.Button(frame_parent, text = "<",   command = parent.step_prev)
-            self.slider_step    = tk.Scale(frame_parent, command = parent.update_slider, from_ = 1, to = parent.aiv.step_tot, orient = tk.HORIZONTAL)
+            self.slider_step    = tk.Scale(frame_parent, command = parent.update_slider, from_ = 0, to = parent.aiv.step_tot, orient = tk.HORIZONTAL)
             self.slider_step.set(parent.aiv.step_cur)
             self.button_next    = tk.Button(frame_parent, text = ">",   command = parent.step_next)
             self.button_last    = tk.Button(frame_parent, text = ">|",  command = parent.step_last)
@@ -978,12 +978,12 @@ class Villagepp(tk.Tk):
         self.update_slider()
 
     def step_prev(self, e = None):
-        if (self.aiv.step_cur > 1):
+        if (self.aiv.step_cur > 0):
             self.aiv.step_cur -= 1
         self.update_slider()
 
     def step_first(self, e = None):
-        self.aiv.step_cur = 1
+        self.aiv.step_cur = 0
         self.update_slider()
 
     def step_last(self, e = None):
