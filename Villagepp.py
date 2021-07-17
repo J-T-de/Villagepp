@@ -906,7 +906,7 @@ class Villagepp(tk.Tk):
     def open(self, e = None):
         self.ask_save()
         
-        aiv_path = fd.askopenfilename()
+        aiv_path = fd.askopenfilename(filetypes = (("aiv files","*.aiv"),("all files","*.*")))
 
         if aiv_path == "":
             return
@@ -934,7 +934,7 @@ class Villagepp(tk.Tk):
             self.aiv.save(aiv_path)
 
     def save_as(self, e = None):
-        aiv_path = fd.asksaveasfilename()
+        aiv_path = fd.asksaveasfilename(filetypes = (("aiv files","*.aiv"),("all files","*.*")))
 
         if aiv_path == None:
             return
@@ -945,7 +945,7 @@ class Villagepp(tk.Tk):
         save = mb.askyesno("Village++", "Do you want to export a preview?")
 
         if save == True:
-            preview_path = fd.asksaveasfilename()
+            preview_path = fd.asksaveasfilename(filetypes = (("png files","*.png"),("all files","*.*")))
             if preview_path == None:
                 return
             else:
