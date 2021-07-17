@@ -51,9 +51,9 @@ class Aiv(object):
         self.gmap       = np.random.randint(0, 8, size=(aiv_size,aiv_size), dtype=np.int8)
         self.bmap_id    = np.zeros((aiv_size,aiv_size), np.int16)
         self.bmap_step  = np.zeros((aiv_size,aiv_size), np.int32)
-        self.step_cur   = 1
-        self.step_tot   = 1
-        self.parr       = -1 * np.ones( 50, np.int32)
+        self.step_cur   = 0
+        self.step_tot   = 0
+        self.parr       = -1 * np.ones(50, np.int32)
         self.parr[0]    = 0
         self.tarr       = np.zeros((24,10), np.int32)
         self.pause      = 50
@@ -558,9 +558,13 @@ class Aiv(object):
         
         x_pos, y_pos = pos
 
-        # all future steps +1
-        for x in range(0, AIV_DEFAULT_SIZE):
-            for y in range(0, AIV_DEFAULT_SIZE):
+        # Update current step and total steps
+        self.step_cur += 1
+        self.step_tot += 1
+
+        # all later steps +1
+        for x in range(0, self.aiv_size):
+            for y in range(0, self.aiv_size):
                 if (self.bmap_step[y, x] >= self.step_cur):
                     self.bmap_step[y, x] += 1
 
@@ -583,30 +587,30 @@ class Aiv(object):
             for y in range(0,y_size):
                 self.bmap_size[y_pos+y, x_pos+x] += m_size[y,x]
                 self.bmap_tile[y_pos+y, x_pos+x] += m_tile[y,x]
-        
-        # Update current step and total steps
-        self.step_cur += 1
-        self.step_tot += 1
 
     def building_remove(self, pos):
         """
         removes building placed at pos
         """
         x, y = pos
-        step = self.bmap_step[y,x]
+        step = self.bmap_step[y,x] # building-step to delete
 
         if step == 0:
             return
 
-        for x in range(0,AIV_DEFAULT_SIZE):
-            for y in range(0,AIV_DEFAULT_SIZE):
-                if (self.bmap_step[y,x] == step):
+        for x in range(0, self.aiv_size):
+            for y in range(0, self.aiv_size):
+                tile_step = self.bmap_step[y,x] # building-step of the current tile
+                if (tile_step == step):         # delete building
                     self.bmap_step[y,x]  = 0
                     self.bmap_id[y,x]    = 0
                     self.bmap_size[y,x]  = 0
                     self.bmap_tile[y,x]  = 0
+                elif tile_step > step:
+                    self.bmap_step[y,x]  -= 1 # all steps after the deleted step need to be decremented
 
-        self.step_cur -= 1
+        if self.step_cur == self.step_tot:
+            self.step_cur -= 1
         self.step_tot -= 1
 
     def troop_place(self, troop, pos):
@@ -713,10 +717,11 @@ class Aiv(object):
         """
         raise NotImplementedError
 
-    # def _brasenham(self, pos_start, pos_end):
-    #     """
-    #     implements brasenham algorithm for line drawing
-    #     """
+    def _brasenham(self, pos_start, pos_end):
+        """
+        implements brasenham algorithm for line drawing
+        """
+        raise NotImplementedError
     #     def plot_low(self, pos_start, pos_end):
     #         x0, y0 = pos_start
     #         x1, y1 = pos_end
@@ -818,11 +823,13 @@ class Aiv(object):
         """
         fills 
         """
+        raise NotImplementedError
 
     def flood_remove(self, TODO):
         """
         removes 
         """
+        raise NotImplementedError
 
 
 class Building():
