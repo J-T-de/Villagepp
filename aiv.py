@@ -8,7 +8,7 @@ from compression import blast
 AIV_DEFAULT_SIZE = 100
 
 class Aiv(object):
-    def __init__(self, path = None, aiv_size = AIV_DEFAULT_SIZE):
+    def __init__(self, path = None, aiv_size = 100):
         if (path==None):
             self.create_empty(aiv_size)
         else:
@@ -94,8 +94,7 @@ class Aiv(object):
         offset += 400
 
         # set size
-        # print(int(self.dir_uncompr_size[3]**0.5))
-        # self.aiv_size = self.dir_uncompr_size[3]**0.5
+        self.aiv_size = int(self.dir_uncompr_size[3]**0.5)
 
         # compressed sizes of sections
         size = self.dir_sec_cnt * 4
@@ -143,7 +142,7 @@ class Aiv(object):
         offset += size
 
         size = self.c_2004
-        self.bmap_size = np.frombuffer(blast.decompress(aiv_data[offset:offset+size]), np.int8).copy().reshape((AIV_DEFAULT_SIZE,AIV_DEFAULT_SIZE))
+        self.bmap_size = np.frombuffer(blast.decompress(aiv_data[offset:offset+size]), np.int8).copy().reshape((self.aiv_size,self.aiv_size))
         offset += size
 
         # bmap_tile
@@ -152,7 +151,7 @@ class Aiv(object):
         offset += size
 
         size = self.c_2005
-        self.bmap_tile = np.frombuffer(blast.decompress(aiv_data[offset:offset+size]), np.int8).copy().reshape((AIV_DEFAULT_SIZE,AIV_DEFAULT_SIZE))
+        self.bmap_tile = np.frombuffer(blast.decompress(aiv_data[offset:offset+size]), np.int8).copy().reshape((self.aiv_size,self.aiv_size))
         offset += size
 
         # tmap
@@ -161,13 +160,13 @@ class Aiv(object):
         offset += size
 
         size = self.c_2013
-        self.tmap = np.frombuffer(blast.decompress(aiv_data[offset:offset+size]), np.int8).copy().reshape((AIV_DEFAULT_SIZE,AIV_DEFAULT_SIZE))
+        self.tmap = np.frombuffer(blast.decompress(aiv_data[offset:offset+size]), np.int8).copy().reshape((self.aiv_size,self.aiv_size))
         offset += size
 
         # gmap
         i = 6
         size = self.dir_compr_size[i]
-        self.gmap = np.frombuffer(aiv_data[offset:offset+size], np.int8).copy().reshape((AIV_DEFAULT_SIZE,AIV_DEFAULT_SIZE))
+        self.gmap = np.frombuffer(aiv_data[offset:offset+size], np.int8).copy().reshape((self.aiv_size,self.aiv_size))
         offset += size
 
         # bmap_id
@@ -176,7 +175,7 @@ class Aiv(object):
         offset += size
 
         size = self.c_2007
-        self.bmap_id = np.frombuffer(blast.decompress(aiv_data[offset:offset+size]), np.int16).copy().reshape((AIV_DEFAULT_SIZE,AIV_DEFAULT_SIZE))
+        self.bmap_id = np.frombuffer(blast.decompress(aiv_data[offset:offset+size]), np.int16).copy().reshape((self.aiv_size,self.aiv_size))
         offset += size
 
         # bmap_step
@@ -185,7 +184,7 @@ class Aiv(object):
         offset += size
 
         size = self.c_2008
-        self.bmap_step = np.frombuffer(blast.decompress(aiv_data[offset:offset+size]), np.int32).copy().reshape((AIV_DEFAULT_SIZE,AIV_DEFAULT_SIZE))
+        self.bmap_step = np.frombuffer(blast.decompress(aiv_data[offset:offset+size]), np.int32).copy().reshape((self.aiv_size,self.aiv_size))
         offset += size
 
         # current step
@@ -521,10 +520,10 @@ class Aiv(object):
             107:    (0xF8, 0x80, 0x80),
             108:    (0xF8, 0x80, 0x80)} 
 
-        mat = np.zeros((AIV_DEFAULT_SIZE, AIV_DEFAULT_SIZE, 3), dtype=np.uint8)
+        mat = np.zeros((self.aiv_size, self.aiv_size, 3), dtype=np.uint8)
 
-        for i in range(0, AIV_DEFAULT_SIZE):
-            for j in range(0, AIV_DEFAULT_SIZE):
+        for i in range(0, self.aiv_size):
+            for j in range(0, self.aiv_size):
                 mat[i,j] = mapping_classic[self.bmap_id[i,j]]
 
         image = Image.fromarray(mat, "RGB")
@@ -539,7 +538,7 @@ class Aiv(object):
         m = building.mask_full()
         y_size, x_size = m.shape
 
-        if x_pos < 0 or x_pos + x_size > AIV_DEFAULT_SIZE or y_pos < 0 or y_pos + y_size > AIV_DEFAULT_SIZE:
+        if x_pos < 0 or x_pos + x_size > self.aiv_size or y_pos < 0 or y_pos + y_size > self.aiv_size:
             return False
 
         for x in range(0,x_size):
@@ -622,7 +621,7 @@ class Aiv(object):
         # if there are less then 10 troops place, write the tile-id into  tarr
         for i in range(0, 10):
             if self.tarr[troop][i] == 0:
-                tile_id = AIV_DEFAULT_SIZE * y + x
+                tile_id = self.aiv_size * y + x
                 self.tarr[troop][i] = tile_id
                 break
         else:
@@ -636,7 +635,7 @@ class Aiv(object):
         removes troop at pos
         """
         x, y = pos
-        tile_id = AIV_DEFAULT_SIZE * y + x
+        tile_id = self.aiv_size * y + x
 
         # find which troop is visible on pos
         troop = self.tmap[y,x]
@@ -696,19 +695,19 @@ class Aiv(object):
         # if dir == 'N':
         #     if np.all(aiv[0,:] == 0):
         #         aiv[:-1,:] = aiv[1:,:]
-        #         aiv[-1,:] = np.zeros((1,AIV_DEFAULT_SIZE))
+        #         aiv[-1,:] = np.zeros((1,self.aiv_size))
         # elif dir == 'W':
         #     if np.all(aiv[:,0] == 0):
         #         aiv[:,:-1] = aiv[:,1:]
-        #         aiv[:,-1] = np.zeros(AIV_DEFAULT_SIZE)
+        #         aiv[:,-1] = np.zeros(self.aiv_size)
         # elif dir == 'S':
         #     if np.all(aiv[-1,:] == 0):
         #         aiv[1:,:] = aiv[:-1,:]
-        #         aiv[1,:] = np.zeros((1,AIV_DEFAULT_SIZE))
+        #         aiv[1,:] = np.zeros((1,self.aiv_size))
         # elif dir == 'E':
         #     if np.all(aiv[:,-1] == 0):
         #         aiv[:,1:] = aiv[:,:-1]
-        #         aiv[:,1] = np.zeros(AIV_DEFAULT_SIZE)
+        #         aiv[:,1] = np.zeros(self.aiv_size)
         # return
 
     def move_time(self, step_before, step_after):
