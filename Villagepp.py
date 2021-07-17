@@ -282,6 +282,11 @@ class Villagepp(tk.Tk):
                         if(self.parent.aiv.wall_isplaceable(self.wall_origin, position)):
                             self.parent.aiv.wall_place(building, self.wall_origin, position)
                             self.wall_origin = None #reset status of wallplacement
+                            self.parent.update_slider()
+                            (xOrigin, yOrigin) = self.wall_origin
+                            mask = self.parent.aiv.wall_mask(self.wall_origin,position)
+                            (ySize, xSize) = mask.size
+                            self.redraw_partially((xOrigin*self.tile_size + xMapOrigin, yOrigin*self.tile_size + yMapOrigin), (xSize, ySize))
                     else:
                         #on first click: save current position as wall origin
                         self.wall_origin = position
@@ -334,7 +339,7 @@ class Villagepp(tk.Tk):
                     shadow = Image.new("RGBA", (x_size*self.tile_size, y_size*self.tile_size), (0, 0, 0, 0))
                     for x in range(x_size):
                         for y in range(y_size):
-                            if(mask[y, x] == 1):
+                            if(mask[y, x] != 0):
                                 shadow.paste(tile, (x*self.tile_size, y*self.tile_size))
 
                 elif(kind == "Unit"):
@@ -360,11 +365,20 @@ class Villagepp(tk.Tk):
                         shadow = Image.new("RGBA", (x_size*self.tile_size, y_size*self.tile_size), (0, 0, 0, 0))
                         for x in range(x_size):
                             for y in range(y_size):
-                                if(mask[y, x] == 1):
+                                if(mask[y, x] != 0):
                                     shadow.paste(tile, (x*self.tile_size, y*self.tile_size))
                     else:
-                        shadow = None #don't draw shadow if there is no wall_origin
-                        self.wall_shadow_origin = None
+                        buildable = self.parent.aiv.wall_isplaceable(tile_position, tile_position)
+
+                        if(buildable == True):
+                            shadow = Image.new("RGBA", tile_size, (0, 255, 0, 127))
+                        else:
+                            shadow = Image.new("RGBA", tile_size, (255, 0, 0, 127))
+
+                        self.wall_shadow_origin = tile_position
+
+                        #shadow = None #don't draw shadow if there is no wall_origin
+                        #self.wall_shadow_origin = None
 
             self.shadow = shadow
 
@@ -522,7 +536,7 @@ class Villagepp(tk.Tk):
         #                    if(self.parent.aiv.bmap_step[y, x] >= self.parent.aiv.step_cur):
         #                        buildingSurface.putalpha(127)
         #                    self.surface.paste(buildingSurface, (x*self.tile_size, y*self.tile_size))
-        #                    if(self.parent.aiv.bmap_tile[y, x] == 1):
+        #                    if(self.parent.aiv.bmap_tile[y, x] != 0):
         #                        namePositions.append((x,y))
         #
         #                    troopId = self.parent.aiv.tmap[y, x]
@@ -608,55 +622,6 @@ class Villagepp(tk.Tk):
         def redraw_surface(self): #redraws the map-surface, but not the screen
             self.surface = Image.new("RGBA", (self.tile_size*self.parent.aiv.aiv_size, self.tile_size*self.parent.aiv.aiv_size), (0, 0, 0, 255))
             self.redraw_partially(self.origin, (self.parent.aiv.aiv_size, self.parent.aiv.aiv_size))
-#            namePositions = []
-#            for x in range(0, self.parent.aiv.aiv_size):
-#                for y in range(0, self.parent.aiv.aiv_size):
-#                    buildingId = self.parent.aiv.bmap_id[y, x]
-#                    buildingSurface = None
-#                    #grass
-#                    if(buildingId == BuildingId.NOTHING):
-#                        buildingSurface = self.building_tiles[buildingId][self.parent.aiv.gmap[y, x]]
-#                    #moat or pitch or any other tile that doesn't have an orientation - walls?
-#                    elif(buildingId < 30):
-#                        buildingSurface = self.building_tiles[buildingId]
-#                    else:
-#                        buildingSurface = self.building_tiles[buildingId][self.parent.aiv.bmap_tile[y, x]]
-#                    if(self.parent.aiv.bmap_step[y, x] > self.parent.aiv.step_cur):
-#                        buildingSurface.putalpha(127)
-#                    self.surface.paste(buildingSurface, (x*self.tile_size, y*self.tile_size))
-#                    if(self.parent.aiv.bmap_tile[y, x] == 1):
-#                        namePositions.append((x,y))
-#
-#                    #draw troops "above" buildings
-#                    troopId = self.parent.aiv.tmap[y, x]
-#                    if(troopId != 0):
-#                        troopTile = self.troop_tiles[troopId]
-#
-#                        background = self.surface.crop((x*self.tile_size, y*self.tile_size, (x+1)*self.tile_size, (y+1)*self.tile_size))
-#                        newMapTile = Image.alpha_composite(background, troopTile)
-#                        self.surface.paste(newMapTile, (x*self.tile_size, y*self.tile_size))
-#            #        for pos in namePositions:
-#            #            (x, y) = pos
-#            #            size = self.parent.aiv.bmap_size[y, x]
-#            #
-#            #            #for nice transparent text: crop underlying map, alpha_composite with text-image, then paste back to map
-#            #
-#            # #           #crop building
-#            # #           im = inputBMP.crop((left, upper, right, lower))
-#            # #           #TODO: buildings of size 2 might not get properly cropped, but atm they don't even have text since they have no tile with bmap_tile == 1
-#            # #           left = x - (size-1)/2
-#            # #           upper = y - (size-1)/2
-#            # #           building = self.surface.crop((left, upper, right, lower))
-#            #
-#            #            #blank image for text, transparent
-#            #            txt = Image.new("RGBA", (self.tile_size*size, self.tile_size*size), (0, 0, 255, 0))
-#            #            #get a font
-#            #            font = ImageFont.load_default()
-#            #            #get a drawing context from blank image
-#            #            d = ImageDraw.Draw(txt)
-#            #            #draw text to image
-#            #            d.text(((self.tile_size*size)//2, (self.tile_size*size)//2), str(BuildingId(self.parent.aiv.bmap_id[y, x]).name), fill="black", anchor="mm", font=font)
-#            #            self.surface.paste(txt, (x*self.tile_size, y*self.tile_size))
 
         def get_input_tile(self, x, y, inputBMP):
             originOffset = 1 #first tile offset in x/y-direction
