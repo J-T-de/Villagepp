@@ -58,6 +58,21 @@ class Aiv(object):
         self.tarr       = np.zeros((24,10), np.int32)
         self.pause      = 50
 
+        # # set keep to center (can be deleted)
+        # self.building_place(Building("KEEP"), ((aiv_size//2)-7,(aiv_size//2)-7))
+        
+        # # set border tiles into step 1
+        # for i in range(0, aiv_size):
+        #     self.bmap_id[0,0+i]                 = BuildingId["BORDER_TILE"]
+        #     self.bmap_id[self.aiv_size-1,0+i]   = BuildingId["BORDER_TILE"]
+        #     self.bmap_id[0+i,0]                 = BuildingId["BORDER_TILE"]
+        #     self.bmap_id[0+i,self.aiv_size-1]   = BuildingId["BORDER_TILE"]
+
+        #     self.bmap_step[0,0+i]               = 1
+        #     self.bmap_step[self.aiv_size-1,0+i] = 1
+        #     self.bmap_step[0+i,0]               = 1
+        #     self.bmap_step[0+i,self.aiv_size-1] = 1
+
     def load(self, path):
         aiv_file = open(path, 'rb')
         aiv_data = aiv_file.read()
@@ -739,10 +754,9 @@ class Aiv(object):
             sy = -1
         
         err = dx + dy
-        test = list()
 
         while True:
-            mask[x0, y0] = 1
+            mask[y0, x0] = 1
             if x0 == x1 and y0 == y1:
                 break
 
@@ -754,7 +768,48 @@ class Aiv(object):
                 err += dx
                 y0 += sy
 
-        return (origin, mask[origin[0]:origin[0] + abs(dx) + 1, origin[1]:origin[1]+ abs(dy) + 1])
+        print(mask)
+
+        return (origin, mask[origin[1]:origin[1]+ abs(dy) + 1, origin[0]:origin[0] + abs(dx) + 1])
+
+    def _bresenham_stairs(self, height, pos_start, pos_end):
+        """
+        implements bresenham algorithm for line drawing (from wikipedia)
+        """
+        x0, y0 = pos_start
+        x1, y1 = pos_end
+
+        origin = (min(x0,x1), min(y0,y1))
+        mask = np.zeros((self.aiv_size, self.aiv_size))
+        
+        dx =  abs(x1-x0)
+        if x0 < x1:
+            sx = 1
+        else:
+            sx = -1
+    
+        dy = -abs(y1-y0)
+        if y0 < y1:
+            sy = 1
+        else:
+            sy = -1
+        
+        err = dx + dy
+
+        while True:
+            mask[y0, x0] = 1
+            if x0 == x1 and y0 == y1:
+                break
+
+            e2 = 2*err
+            if (e2 >= dy):
+                err += dy
+                x0 += sx
+            if (e2 <= dx):
+                err += dx
+                y0 += sy
+
+        return (origin, mask[origin[0]:origin[0] + abs(dy) + 1, origin[1]:origin[1]+ abs(dx) + 1])
         
 
     def wall_isplaceable(self, pos_start, pos_end, thickness=1):
@@ -841,7 +896,6 @@ class Aiv(object):
         """
         raise NotImplementedError
 
-
 class Building():
     def __init__(self, name):
         self.name = name
@@ -915,7 +969,6 @@ class Building():
         """
         m = self.size * self.mask()
         return m.astype(np.int8)
-
 
 class BuildingId(IntEnum):
     NOTHING     = 0
@@ -1009,7 +1062,6 @@ class BuildingId(IntEnum):
     GIBBET          = 106
     CHOPPING_BLOCK  = 107
     DUNKING_STOOL   = 108
-
 
 class BuildingSize(IntEnum):
     NOTHING     = 1

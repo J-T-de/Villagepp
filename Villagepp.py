@@ -988,19 +988,27 @@ class Villagepp(tk.Tk):
         if (self.aiv.step_cur < self.aiv.step_tot):
             self.aiv.step_cur += 1
         self.navbar.slider_step.set(self.aiv.step_cur)
+        self.map.redraw_partially(self.map.origin, self.map.screenTSize)
+        self.map.update_screen()
 
     def step_prev(self, e = None):
         if (self.aiv.step_cur > 0):
             self.aiv.step_cur -= 1
         self.navbar.slider_step.set(self.aiv.step_cur)
+        self.map.redraw_partially(self.map.origin, self.map.screenTSize)
+        self.map.update_screen()
 
     def step_first(self, e = None):
         self.aiv.step_cur = 0
         self.navbar.slider_step.set(self.aiv.step_cur)
+        self.map.redraw_partially(self.map.origin, self.map.screenTSize)
+        self.map.update_screen()
 
     def step_last(self, e = None):
         self.aiv.step_cur = self.aiv.step_tot
         self.navbar.slider_step.set(self.aiv.step_cur)
+        self.map.redraw_partially(self.map.origin, self.map.screenTSize)
+        self.map.update_screen()
 
     def update_slider(self, e = None):
         if e != None:
