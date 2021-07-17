@@ -5,27 +5,29 @@ import numpy as np
 
 from compression import blast
 
-AIV_SIZE = 100
+AIV_DEFAULT_SIZE = 100
 
 class Aiv(object):
-    def __init__(self, path=None):
+    def __init__(self, path = None, aiv_size = AIV_DEFAULT_SIZE):
         if (path==None):
-            self.create_empty()
+            self.create_empty(aiv_size)
         else:
             self.load(path)
 
-    def create_empty(self):
+    def create_empty(self, aiv_size):
+        self.aiv_size       = aiv_size
+
         self.dir_size       = 2036
         self.dir_fswd       = -1
         self.dir_sec_cnt    = 14
         self.dir_version    = 200
 
         self.dir_uncompr_size = np.array([
-            4, 4, 40016, 10000, 10000, 10000, 10000, 20000, 40000, 4, 4, 200, 960, 4
+            4, 4, 40016, aiv_size**2, aiv_size**2, aiv_size**2, aiv_size**2, 2*aiv_size**2, 4*aiv_size**2, 4, 4, 200, 960, 4
         ], dtype=np.int32)
 
         self.dir_compr_size = np.array([
-            4, 4, 40016, -1, -1, -1, 10000, -1, -1, 4, 4, 200, 960, 4
+            4, 4, 40016, -1, -1, -1, aiv_size**2, -1, -1, 4, 4, 200, 960, 4
         ], dtype=np.int32)
 
         self.dir_id = np.array([
@@ -43,13 +45,12 @@ class Aiv(object):
         self.x_view     = 0
         self.y_view     = 0
         self.random     = 40016*b'\x00'
-        self.bmap_size  = np.zeros((AIV_SIZE,AIV_SIZE), np.int8)
-        self.bmap_tile  = np.zeros((AIV_SIZE,AIV_SIZE), np.int8)
-        self.tmap       = np.zeros((AIV_SIZE,AIV_SIZE), np.int8)
-        # self.gmap       = np.zeros((AIV_SIZE,AIV_SIZE), np.int8)
-        self.gmap       = np.random.randint(0, 8, size=(AIV_SIZE,AIV_SIZE), dtype=np.int8)
-        self.bmap_id    = np.zeros((AIV_SIZE,AIV_SIZE), np.int16)
-        self.bmap_step  = np.zeros((AIV_SIZE,AIV_SIZE), np.int32)
+        self.bmap_size  = np.zeros((aiv_size,aiv_size), np.int8)
+        self.bmap_tile  = np.zeros((aiv_size,aiv_size), np.int8)
+        self.tmap       = np.zeros((aiv_size,aiv_size), np.int8)
+        self.gmap       = np.random.randint(0, 8, size=(aiv_size,aiv_size), dtype=np.int8)
+        self.bmap_id    = np.zeros((aiv_size,aiv_size), np.int16)
+        self.bmap_step  = np.zeros((aiv_size,aiv_size), np.int32)
         self.step_cur   = 1
         self.step_tot   = 1
         self.parr       = -1 * np.ones( 50, np.int32)
@@ -91,6 +92,10 @@ class Aiv(object):
         size = self.dir_sec_cnt * 4
         self.dir_uncompr_size   = np.frombuffer(aiv_data[offset:offset+size], np.int32).copy()
         offset += 400
+
+        # set size
+        # print(int(self.dir_uncompr_size[3]**0.5))
+        # self.aiv_size = self.dir_uncompr_size[3]**0.5
 
         # compressed sizes of sections
         size = self.dir_sec_cnt * 4
@@ -138,7 +143,7 @@ class Aiv(object):
         offset += size
 
         size = self.c_2004
-        self.bmap_size = np.frombuffer(blast.decompress(aiv_data[offset:offset+size]), np.int8).copy().reshape((AIV_SIZE,AIV_SIZE))
+        self.bmap_size = np.frombuffer(blast.decompress(aiv_data[offset:offset+size]), np.int8).copy().reshape((AIV_DEFAULT_SIZE,AIV_DEFAULT_SIZE))
         offset += size
 
         # bmap_tile
@@ -147,7 +152,7 @@ class Aiv(object):
         offset += size
 
         size = self.c_2005
-        self.bmap_tile = np.frombuffer(blast.decompress(aiv_data[offset:offset+size]), np.int8).copy().reshape((AIV_SIZE,AIV_SIZE))
+        self.bmap_tile = np.frombuffer(blast.decompress(aiv_data[offset:offset+size]), np.int8).copy().reshape((AIV_DEFAULT_SIZE,AIV_DEFAULT_SIZE))
         offset += size
 
         # tmap
@@ -156,13 +161,13 @@ class Aiv(object):
         offset += size
 
         size = self.c_2013
-        self.tmap = np.frombuffer(blast.decompress(aiv_data[offset:offset+size]), np.int8).copy().reshape((AIV_SIZE,AIV_SIZE))
+        self.tmap = np.frombuffer(blast.decompress(aiv_data[offset:offset+size]), np.int8).copy().reshape((AIV_DEFAULT_SIZE,AIV_DEFAULT_SIZE))
         offset += size
 
         # gmap
         i = 6
         size = self.dir_compr_size[i]
-        self.gmap = np.frombuffer(aiv_data[offset:offset+size], np.int8).copy().reshape((AIV_SIZE,AIV_SIZE))
+        self.gmap = np.frombuffer(aiv_data[offset:offset+size], np.int8).copy().reshape((AIV_DEFAULT_SIZE,AIV_DEFAULT_SIZE))
         offset += size
 
         # bmap_id
@@ -171,7 +176,7 @@ class Aiv(object):
         offset += size
 
         size = self.c_2007
-        self.bmap_id = np.frombuffer(blast.decompress(aiv_data[offset:offset+size]), np.int16).copy().reshape((AIV_SIZE,AIV_SIZE))
+        self.bmap_id = np.frombuffer(blast.decompress(aiv_data[offset:offset+size]), np.int16).copy().reshape((AIV_DEFAULT_SIZE,AIV_DEFAULT_SIZE))
         offset += size
 
         # bmap_step
@@ -180,7 +185,7 @@ class Aiv(object):
         offset += size
 
         size = self.c_2008
-        self.bmap_step = np.frombuffer(blast.decompress(aiv_data[offset:offset+size]), np.int32).copy().reshape((AIV_SIZE,AIV_SIZE))
+        self.bmap_step = np.frombuffer(blast.decompress(aiv_data[offset:offset+size]), np.int32).copy().reshape((AIV_DEFAULT_SIZE,AIV_DEFAULT_SIZE))
         offset += size
 
         # current step
@@ -516,10 +521,10 @@ class Aiv(object):
             107:    (0xF8, 0x80, 0x80),
             108:    (0xF8, 0x80, 0x80)} 
 
-        mat = np.zeros((AIV_SIZE, AIV_SIZE, 3), dtype=np.uint8)
+        mat = np.zeros((AIV_DEFAULT_SIZE, AIV_DEFAULT_SIZE, 3), dtype=np.uint8)
 
-        for i in range(0, AIV_SIZE):
-            for j in range(0, AIV_SIZE):
+        for i in range(0, AIV_DEFAULT_SIZE):
+            for j in range(0, AIV_DEFAULT_SIZE):
                 mat[i,j] = mapping_classic[self.bmap_id[i,j]]
 
         image = Image.fromarray(mat, "RGB")
@@ -534,7 +539,7 @@ class Aiv(object):
         m = building.mask_full()
         y_size, x_size = m.shape
 
-        if x_pos < 0 or x_pos + x_size > AIV_SIZE or y_pos < 0 or y_pos + y_size > AIV_SIZE:
+        if x_pos < 0 or x_pos + x_size > AIV_DEFAULT_SIZE or y_pos < 0 or y_pos + y_size > AIV_DEFAULT_SIZE:
             return False
 
         for x in range(0,x_size):
@@ -554,8 +559,8 @@ class Aiv(object):
         x_pos, y_pos = pos
 
         # all future steps +1
-        for x in range(0, AIV_SIZE):
-            for y in range(0, AIV_SIZE):
+        for x in range(0, AIV_DEFAULT_SIZE):
+            for y in range(0, AIV_DEFAULT_SIZE):
                 if (self.bmap_step[y, x] >= self.step_cur):
                     self.bmap_step[y, x] += 1
 
@@ -566,8 +571,8 @@ class Aiv(object):
 
         for x in range(0,x_size):
             for y in range(0,y_size):
-                self.bmap_id[y_pos+y, x_pos+x] = m_id[y,x]
-                self.bmap_step[y_pos+y, x_pos+x] = m_step[y,x]
+                self.bmap_id[y_pos+y, x_pos+x] += m_id[y,x]
+                self.bmap_step[y_pos+y, x_pos+x] += m_step[y,x]
 
         # Update bmap_size and bmap_tile
         m_size = building.mask_size()
@@ -576,8 +581,8 @@ class Aiv(object):
 
         for x in range(0,x_size):
             for y in range(0,y_size):
-                self.bmap_size[y_pos+y, x_pos+x] = m_size[y,x]
-                self.bmap_tile[y_pos+y, x_pos+x] = m_tile[y,x]
+                self.bmap_size[y_pos+y, x_pos+x] += m_size[y,x]
+                self.bmap_tile[y_pos+y, x_pos+x] += m_tile[y,x]
         
         # Update current step and total steps
         self.step_cur += 1
@@ -593,8 +598,8 @@ class Aiv(object):
         if step == 0:
             return
 
-        for x in range(0,AIV_SIZE):
-            for y in range(0,AIV_SIZE):
+        for x in range(0,AIV_DEFAULT_SIZE):
+            for y in range(0,AIV_DEFAULT_SIZE):
                 if (self.bmap_step[y,x] == step):
                     self.bmap_step[y,x]  = 0
                     self.bmap_id[y,x]    = 0
@@ -613,7 +618,7 @@ class Aiv(object):
         # if there are less then 10 troops place, write the tile-id into  tarr
         for i in range(0, 10):
             if self.tarr[troop][i] == 0:
-                tile_id = AIV_SIZE * y + x
+                tile_id = AIV_DEFAULT_SIZE * y + x
                 self.tarr[troop][i] = tile_id
                 break
         else:
@@ -627,7 +632,7 @@ class Aiv(object):
         removes troop at pos
         """
         x, y = pos
-        tile_id = AIV_SIZE * y + x
+        tile_id = AIV_DEFAULT_SIZE * y + x
 
         # find which troop is visible on pos
         troop = self.tmap[y,x]
@@ -687,19 +692,19 @@ class Aiv(object):
         # if dir == 'N':
         #     if np.all(aiv[0,:] == 0):
         #         aiv[:-1,:] = aiv[1:,:]
-        #         aiv[-1,:] = np.zeros((1,AIV_SIZE))
+        #         aiv[-1,:] = np.zeros((1,AIV_DEFAULT_SIZE))
         # elif dir == 'W':
         #     if np.all(aiv[:,0] == 0):
         #         aiv[:,:-1] = aiv[:,1:]
-        #         aiv[:,-1] = np.zeros(AIV_SIZE)
+        #         aiv[:,-1] = np.zeros(AIV_DEFAULT_SIZE)
         # elif dir == 'S':
         #     if np.all(aiv[-1,:] == 0):
         #         aiv[1:,:] = aiv[:-1,:]
-        #         aiv[1,:] = np.zeros((1,AIV_SIZE))
+        #         aiv[1,:] = np.zeros((1,AIV_DEFAULT_SIZE))
         # elif dir == 'E':
         #     if np.all(aiv[:,-1] == 0):
         #         aiv[:,1:] = aiv[:,:-1]
-        #         aiv[:,1] = np.zeros(AIV_SIZE)
+        #         aiv[:,1] = np.zeros(AIV_DEFAULT_SIZE)
         # return
 
     def move_time(self, step_before, step_after):
@@ -708,11 +713,94 @@ class Aiv(object):
         """
         raise NotImplementedError
 
-    def build_wall(self, type, pos1, pos2, thickness=1):
+    # def _brasenham(self, pos_start, pos_end):
+    #     """
+    #     implements brasenham algorithm for line drawing
+    #     """
+    #     def plot_low(self, pos_start, pos_end):
+    #         x0, y0 = pos_start
+    #         x1, y1 = pos_end
+
+    #         dx = x1 - x0
+    #         dy = y1 - y0
+
+    #         yi = 1
+
+    #         if dy < 0:
+    #             yi = -1
+    #             dy = -dy
+
+    #         D = 2 * dy - dx
+    #         y = y0
+
+    #         for x in range(x0, x1+1):
+    #             plot(x, y)
+
+    #             if D > 0:
+    #                 y += yi
+    #                 D += 2 * (dy - dx)
+    #             else:
+    #                 D += 2 * dy
+
+    #     def plot_high(self, pos_start, pos_end):
+    #         x0, y0 = pos_start
+    #         x1, y1 = pos_end
+
+    #         dx = x1 - x0
+    #         dy = y1 - y0
+
+    #         yi = 1
+
+    #         if dy < 0:
+    #             yi = -1
+    #             dy = -dy
+
+    #         D = 2 * dy - dx
+    #         y = y0
+
+    #         for x in range(x0, x1+1):
+    #             plot(x, y)
+
+    #             if D > 0:
+    #                 y += yi
+    #                 D += 2 * (dy - dx)
+    #             else:
+    #                 D += 2 * dy
+
+    #     x0, y0 = pos_start
+    #     x1, y1 = pos_end
+
+    #     if abs(y1 - y0) < abs(x1 - x0):
+    #         if x0 > x1:
+    #             plot_low()
+    #         else:
+    #             plot_high()
+    #     else:
+    #         if y0 > y1:
+    #             plot_high()
+    #         else:
+    #             plot_high()
+        
+
+    def wall_isplaceable(self, pos_start, pos_end, thickness=1):
+        """
+        returns true if wall is placeable, else false
+        """
+        if thickness != 1:
+            raise NotImplementedError
+
+        raise NotImplementedError
+
+
+    def wall_build(self, type, pos1, pos2, thickness=1):
         """
         builds a wall of type from pos1 to pos2 with thickness
         """
+        if thickness != 1:
+            raise NotImplementedError
+
         raise NotImplementedError
+
 
     def build_stairs(self, pos1, pos2, height, extendend = False):
         """

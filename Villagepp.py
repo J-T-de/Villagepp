@@ -6,7 +6,7 @@ import tkinter.messagebox as mb
 
 from PIL import ImageFont, ImageDraw, ImageTk, Image
 
-from aiv import Aiv, AIV_SIZE, Building, BuildingId, TroopId
+from aiv import Aiv, AIV_DEFAULT_SIZE, Building, BuildingId, TroopId
 
 # TODO: settings.json
 lang = "en"
@@ -155,7 +155,7 @@ class Villagepp(tk.Tk):
 
             self.wall_origin = None
 
-            self.surface = Image.new("RGBA", (self.tile_size*AIV_SIZE, self.tile_size*AIV_SIZE), (0, 0, 0, 255))
+            self.surface = Image.new("RGBA", (self.tile_size*AIV_DEFAULT_SIZE, self.tile_size*AIV_DEFAULT_SIZE), (0, 0, 0, 255))
             self.redraw_surface()
 
             #size of whole editor
@@ -183,7 +183,7 @@ class Villagepp(tk.Tk):
 
                 self.screenTSize = ((frame_width + self.tile_size - 1)//self.tile_size, (frame_height + self.tile_size - 1)//self.tile_size)
 
-                self.surface = Image.new("RGBA", (self.tile_size*AIV_SIZE, self.tile_size*AIV_SIZE), (0, 0, 0, 255))
+                self.surface = Image.new("RGBA", (self.tile_size*AIV_DEFAULT_SIZE, self.tile_size*AIV_DEFAULT_SIZE), (0, 0, 0, 255))
                 self.redraw_partially((0,0), self.screenTSize)
                 self.update_screen()
 
@@ -200,7 +200,7 @@ class Villagepp(tk.Tk):
             self.screenTSize = ((frame_width + self.tile_size - 1)//self.tile_size, (frame_height + self.tile_size - 1)//self.tile_size)
 
 
-            self.surface = Image.new("RGBA", (self.tile_size*AIV_SIZE, self.tile_size*AIV_SIZE), (0, 0, 0, 255))
+            self.surface = Image.new("RGBA", (self.tile_size*AIV_DEFAULT_SIZE, self.tile_size*AIV_DEFAULT_SIZE), (0, 0, 0, 255))
             self.redraw_partially((0,0), self.screenTSize)
             self.update_screen()
 
@@ -219,8 +219,8 @@ class Villagepp(tk.Tk):
             return (x, y)
 
         def get_building_origin_from_timestep(self, timestep):
-            for x in range(0, AIV_SIZE):
-                for y in range(0, AIV_SIZE):
+            for x in range(0, AIV_DEFAULT_SIZE):
+                for y in range(0, AIV_DEFAULT_SIZE):
                     if(self.parent.aiv.bmap_step[y, x] == timestep):
                         return (x, y)
             raise ValueError("Timestep not found in map!")
@@ -544,8 +544,8 @@ class Villagepp(tk.Tk):
             x0 = max(0, x0)
             y0 = max(0, y0)
 
-            x_max = min(x0+x_size, AIV_SIZE)
-            y_max = min(y0+y_size, AIV_SIZE)
+            x_max = min(x0+x_size, AIV_DEFAULT_SIZE)
+            y_max = min(y0+y_size, AIV_DEFAULT_SIZE)
 
             namePositions = []
             for x in range(x0, x_max):
@@ -608,10 +608,10 @@ class Villagepp(tk.Tk):
 
 
         def redraw_surface(self): #redraws the map-surface, but not the screen
-            self.surface = Image.new("RGBA", (self.tile_size*AIV_SIZE, self.tile_size*AIV_SIZE), (0, 0, 0, 255))
+            self.surface = Image.new("RGBA", (self.tile_size*AIV_DEFAULT_SIZE, self.tile_size*AIV_DEFAULT_SIZE), (0, 0, 0, 255))
             namePositions = []
-            for x in range(0, AIV_SIZE): 
-                for y in range(0, AIV_SIZE):
+            for x in range(0, AIV_DEFAULT_SIZE): 
+                for y in range(0, AIV_DEFAULT_SIZE):
                     buildingId = self.parent.aiv.bmap_id[y, x]
                     buildingSurface = None
                     #grass
