@@ -147,7 +147,6 @@ class Villagepp(tk.Tk):
             #dictionaries, building/troop-id as key, corresponding tiles (of type Image) as value
             self.loaded_building_tiles = {}
             self.building_tiles = {}
-            self.blended_building_tiles = {}
             self.troop_tiles = {}
             self.load_tileset("res/tiles.bmp")
 
@@ -714,68 +713,50 @@ class Villagepp(tk.Tk):
             rawBMP.putalpha(255)
             for elem in BuildingId:
                 imageList = []
-                blendedList = []
                 # grass
                 if(elem.value == BuildingId.NOTHING):
                     for variation in range(0, 8):
                         imageList.append(self.get_input_tile(8, variation, rawBMP))
-                        blendedList.append(self.get_input_tile(8, variation, rawBMP).putalpha(127))
                 # border
                 elif(elem.value == BuildingId.BORDER_TILE):
                     imageList = self.get_input_tile(9, 9, rawBMP)
-                    blendedList = self.get_input_tile(9, 9, rawBMP).putalpha(127)
                 # auto
                 elif(elem.value == BuildingId.AUTO):
                     imageList = self.get_input_tile(9, 8, rawBMP)
-                    blendedList = self.get_input_tile(9, 8, rawBMP).putalpha(127)
                 # walls    
                 elif(elem.value == BuildingId.HIGH_WALL):
                     imageList = self.get_input_tile(5, 0, rawBMP)
-                    blendedList = self.get_input_tile(5, 0, rawBMP).putalpha(127)
                 elif(elem.value == BuildingId.LOW_WALL):
                     imageList = self.get_input_tile(7, 0, rawBMP)
-                    blendedList = self.get_input_tile(7, 0, rawBMP).putalpha(127)
                 elif(elem.value == BuildingId.HIGH_CRENEL):
                     imageList = self.get_input_tile(4, 0, rawBMP)
-                    blendedList = self.get_input_tile(4, 0, rawBMP).putalpha(127)
                 elif(elem.value == BuildingId.LOW_CRENEL):
                     imageList = self.get_input_tile(6, 0, rawBMP)
-                    blendedList = self.get_input_tile(6, 0, rawBMP).putalpha(127)
                 #stairs
                 elif(elem.value == BuildingId.STAIRS_1):
                     imageList = self.get_input_tile(9, 0, rawBMP)
-                    blendedList = self.get_input_tile(9, 0, rawBMP).putalpha(127)
                 elif(elem.value == BuildingId.STAIRS_2):
                     imageList = self.get_input_tile(9, 1, rawBMP)
-                    blendedList = self.get_input_tile(9, 1, rawBMP).putalpha(127)
                 elif(elem.value == BuildingId.STAIRS_3):
                     imageList = self.get_input_tile(9, 2, rawBMP)
-                    blendedList = self.get_input_tile(9, 2, rawBMP).putalpha(127)
                 elif(elem.value == BuildingId.STAIRS_4):
                     imageList = self.get_input_tile(9, 3, rawBMP)
-                    blendedList = self.get_input_tile(9, 3, rawBMP).putalpha(127)
                 elif(elem.value == BuildingId.STAIRS_5):
                     imageList = self.get_input_tile(9, 4, rawBMP)
-                    blendedList = self.get_input_tile(9, 4, rawBMP).putalpha(127)
                 elif(elem.value == BuildingId.STAIRS_6):
                     imageList = self.get_input_tile(9, 5, rawBMP)
-                    blendedList = self.get_input_tile(9, 5, rawBMP).putalpha(127)
                 # moat
                 elif(elem.value == BuildingId.MOAT):
                     imageList = self.get_input_tile(8, 8, rawBMP)
-                    blendedList = self.get_input_tile(8, 8, rawBMP).putalpha(127)
                 # pitch
                 elif(elem.value == BuildingId.PITCH):
                     imageList = self.get_input_tile(8, 9, rawBMP)
-                    blendedList = self.get_input_tile(8, 9, rawBMP).putalpha(127)
                 # else
                 else:
                     for variation in range(0, 10): #10 different tile-orientations for each color
                         imageList.append(self.get_input_tile(elem.value//10 - 3, variation, rawBMP))
-                        blendedList.append(self.get_input_tile(elem.value//10 - 3, variation, rawBMP).putalpha(127))
 
                 self.loaded_building_tiles.update({elem.value : imageList})
-                self.blended_building_tiles.update({elem.value : blendedList})
             self.building_tiles = self.loaded_building_tiles
             
             for elem in TroopId:
