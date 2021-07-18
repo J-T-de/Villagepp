@@ -272,7 +272,6 @@ class Villagepp(tk.Tk):
                         (xMapOrigin, yMapOrigin) = self.origin
                         self.redraw_partially((xOrigin*self.tile_size + xMapOrigin, yOrigin*self.tile_size + yMapOrigin), (xSize, ySize))
 
-                # TODO WALL
                 elif(kind == "WallLike"):
                     buildingId = self.selected[1]
                     building = Building(buildingId)
@@ -351,7 +350,6 @@ class Villagepp(tk.Tk):
                     shadow = Image.new("RGBA", tile_size, (0, 255, 0, 127))
                 elif(kind == "DeleteUnit" or kind == "DeleteBuilding"):
                     shadow = Image.new("RGBA", tile_size, (255, 0, 0, 127))
-                #TODO WALL
                 elif(kind == "WallLike"):
                     buildingId = self.selected[1]
                     building = Building(buildingId)
@@ -454,7 +452,6 @@ class Villagepp(tk.Tk):
 
             if(self.shadow != None):
                 if(self.selected[0] == "WallLike"):
-                    #TODO WALL
                     (xOrigin, yOrigin) = self.wall_shadow_origin
 
                     (xSize, ySize) = self.shadow.size #in pixel
@@ -590,20 +587,22 @@ class Villagepp(tk.Tk):
             for (x, y) in namePositions:
                 buildingId = self.parent.aiv.bmap_id[y, x]
                 buildingName = BuildingId(buildingId).name
+                buildingName = buildingPrintNames[buildingName]
                 buildingSize = self.parent.aiv.bmap_size[y, x]
 
                 #get a font
                 font = ImageFont.load_default()
-                (txtSizeX, txtSizeY) = font.getsize(buildingName)
-
+                #TODO: do the same for troop-names
                 #blank image for text, transparent
                 txtTile = Image.new("RGBA", (buildingSize*self.tile_size, buildingSize*self.tile_size), (255, 255, 255, 0))
                 #get a drawing context to the image that's drawn on
                 d = ImageDraw.Draw(txtTile)
+                (txtSizeX, txtSizeY) = d.multiline_textsize(buildingName, font=font)
                 #add rectangle around text
-                d.rectangle([int(buildingSize*self.tile_size/2 - txtSizeX/2), int(buildingSize*self.tile_size/2 - txtSizeY/2), int(buildingSize*self.tile_size/2 + txtSizeX/2), int(buildingSize*self.tile_size/2 + txtSizeY/2)], fill=(255, 255, 255, 255), width=0)
+                d.rectangle([int(buildingSize*self.tile_size/2 - (txtSizeX + 1)/2), int(buildingSize*self.tile_size/2 - txtSizeY/2), int(buildingSize*self.tile_size/2 + (txtSizeX + 1)/2), int(buildingSize*self.tile_size/2 + txtSizeY/2)], fill=(255, 255, 255, 255), width=0)
                 #draw text to image
-                d.text((int(buildingSize*self.tile_size/2 - txtSizeX/2), int(buildingSize*self.tile_size/2 - txtSizeY/2)), str(buildingName), fill="black", anchor="mm", font=font)
+                #offset text x-origin by +1/2 to round up to next pixel in order to get better spacing to the surrounding rectangle
+                d.multiline_text((int(buildingSize*self.tile_size/2 - txtSizeX/2 + 1/2), int(buildingSize*self.tile_size/2 - txtSizeY/2)), str(buildingName), fill="black", anchor="mm", font=font, align = "center")
 
                 background = self.surface.crop((x*self.tile_size, y*self.tile_size, (x+buildingSize)*self.tile_size, (y+buildingSize)*self.tile_size))
                 newMapTile = Image.alpha_composite(background, txtTile)
@@ -795,7 +794,7 @@ class Villagepp(tk.Tk):
                 tk.Button(frame_parent, text = "HIGH_CRENEL",   command = lambda: self.set_walllike("HIGH_CRENEL")).grid(row = 2, column = 0, sticky="nsew", columnspan = 2)
                 tk.Button(frame_parent, text = "LOW_WALL",      command = lambda: self.set_walllike("LOW_WALL")).grid(row = 1, column = 0, sticky="nsew", columnspan = 2)
                 tk.Button(frame_parent, text = "LOW_CRENEL",    command = lambda: self.set_walllike("LOW_CRENEL")).grid(row = 3, column = 0, sticky="nsew", columnspan = 2)
-                tk.Button(frame_parent, text = "STAIRS",        command = lambda: self.set_walllike("STAIRS")).grid(row = 4, column = 0, sticky="nsew", columnspan = 2)
+                tk.Button(frame_parent, text = "STAIRS",        command = lambda: self.set_walllike("STAIRS_1")).grid(row = 4, column = 0, sticky="nsew", columnspan = 2)
                 for r in range(5,11):
                     tk.Button(frame_parent, text = "", command = None).grid(row = r, column = 0, sticky="nsew", columnspan = 2)
             
@@ -974,6 +973,100 @@ class Villagepp(tk.Tk):
             return
         self.navbar = self.Navbar(self.frame_navbar, self)
 
+buildingPrintNames = {
+#these are invisible/dont get printed
+#    "NOTHING" : ""     = 0
+#    "BORDER_TILE" : "" = 1
+#    "AUTO" : ""        = 2
+    #Walls
+    "HIGH_WALL" : "High\nWall",
+    "LOW_WALL" : "Low\nWall",
+    "LOW_CRENEL" : "Low\nCrenel",
+    "HIGH_CRENEL" : "High\nCrenel",
+    "STAIRS_1" : "Stairs\n1",
+    "STAIRS_2" : "Stairs\n2",
+    "STAIRS_3" : "Stairs\n3",
+    "STAIRS_4" : "Stairs\n4",
+    "STAIRS_5" : "Stairs\n5",
+    "STAIRS_6" : "Stairs\n6",
+    #Moats and Pitch
+    "MOAT" : "Moat",
+    "PITCH" : "Pitch",
+    #Castles
+    "TOWER_1" : "Tower\n1",
+    "TOWER_2" : "Tower\n2",
+    "TOWER_3" : "Tower\n3",
+    "TOWER_4" : "Tower\n4",
+    "TOWER_5" : "Tower\n5",
+    "OIL_SMELTER" : "Oil\nSmelter",
+    "DOG_CAGE" : "Dog\nCage",
+    "KILLING_PIT" : "Killing\nPit",
+    "KEEP" : "Keep",
+    "MERCENARY_POST" : "Mercenary\nPost",
+    #Gatehouse
+    "SMALL_GATEHOUSE_EW" : "Small\nGatehouse\nEW",
+    "SMALL_GATEHOUSE_NS" : "Small\nGatehouse\nNS",
+    "LARGE_GATEHOUSE_EW" : "Large\nGatehouse\nEW",
+    "LARGE_GATEHOUSE_NS" : "Large\nGatehouse\nNS",
+    "DRAWBRIDGE" : "Drawbridge",
+    #Weapons and Troops
+    "POLETURNER" : "Poleturner",
+    "FLETCHER" : "Fletcher",
+    "BLACKSMITH" : "Blacksmith",
+    "TANNER" : "Tanner",
+    "ARMOURER" : "Armourer",
+    "BARRACKS" : "Barracks",
+    "ARMOURY" : "Armoury",
+    "ENGINEERS_GUILD" : "Engineers\nGuild",
+    "TUNNELORS_GUILD" : "Tunnelors\nGuild",
+    "STABLES" : "Stables",
+    #Industry
+    "STOCKPILE" : "Stockpile",
+    "WOODCUTTER" : "Woodcutter",
+    "QUARRY" : "Quarry",
+    "OX_TETHER" : "Ox\nTether",
+    "IRON_MINE" : "Iron\Mine",
+    "PITCH_RIG" : "Pitch\nRig",
+    "TRADING_POST" : "Trading\nPost",
+    #Food
+    "GRANARY" : "Granary",
+    "APPLE_FARM" : "Apple\nFarm",
+    "DAIRY_FARM" : "Dairy\nFarm",
+    "WHEAT_FARM" : "Wheat\nFarm",
+    "HUNTER" : "Hunter",
+    "HOPS_FARM" : "Hops\nFarm",
+    "WIND_MILL" : "Wind\nMill",
+    "BAKERY" : "Bakery",
+    "BREWERY" : "Brewery",
+    "INN" : "Inn",
+    #Town
+    "HOUSE" : "House",
+    "CHAPEL" : "Chapel",
+    "CHURCH" : "Church",
+    "CATHEDRAL" : "Cathedral",
+    "HEALERS" : "Healers",
+    "WELL" : "Well",
+    "WATER_POT" : "Water\nPot",
+    #Good Stuff
+    "MAYPOLE" : "Maypole",
+    "DANCING_BEAR" : "Dancing\nBear",
+    "STATUE" : "Statue",
+    "SHRINE" : "Shrine",
+    "TOWN_GARDEN" : "Town\nGarden",
+    "COMUNAL_GARDEN" : "Communal\nGarden",
+    "SMALL_POND" : "Small\nPond",
+    "LARGE_POND" : "Large\nPond",
+    #Bad Stuff
+    "GALLOWS" : "Gallows",
+    "CESS_PIT" : "Cess\nPit",
+    "STOCKS" : "Stocks",
+    "BURNING_STAKE" : "Burning\nStake",
+    "DUNGEON" : "Dungeon",
+    "RACK" : "Rack",
+    "GIBBET" : "Gibbet",
+    "CHOPPING_BLOCK" : "Chopping\nBlock",
+    "DUNKING_STOOL" : "Dunking\nStool"
+}
 
 if __name__ == "__main__":
     vpp = Villagepp()
