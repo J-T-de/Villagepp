@@ -281,12 +281,16 @@ class Villagepp(tk.Tk):
                         #on second click: build wall/whatevs from wall_origin to current position
                         if(self.parent.aiv.wall_isplaceable(building, self.wall_origin, position)):
                             self.parent.aiv.wall_place(building, self.wall_origin, position)
-                            self.wall_origin = None #reset status of wallplacement
+
                             self.parent.update_slider()
-                            (xOrigin, yOrigin) = self.wall_origin
-                            mask = self.parent.aiv.wall_mask(building, self.wall_origin,position)
-                            (ySize, xSize) = mask.size
-                            self.redraw_partially((xOrigin*self.tile_size + xMapOrigin, yOrigin*self.tile_size + yMapOrigin), (xSize, ySize))
+                            (mapMaskOrigin, mask) = self.parent.aiv.wall_mask(building, self.wall_origin, position)
+                            (ySize, xSize) = mask.shape
+                            self.redraw_partially(mapMaskOrigin, (xSize, ySize))
+
+                            self.wall_origin = None #reset status of wallplacement
+                            #resets shadow to tile of size 1 (is explicitly handled in update_shadow)
+                            self.wall_shadow_origin = None
+                            self.shadow = None
                     else:
                         #on first click: save current position as wall origin
                         self.wall_origin = position
@@ -378,9 +382,6 @@ class Villagepp(tk.Tk):
                             shadow = Image.new("RGBA", tile_size, (255, 0, 0, 127))
 
                         self.wall_shadow_origin = tile_position
-
-                        #shadow = None #don't draw shadow if there is no wall_origin
-                        #self.wall_shadow_origin = None
 
             self.shadow = shadow
 
