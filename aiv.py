@@ -804,7 +804,7 @@ class Aiv(object):
                         return False
         return True
 
-    def wall_mask(self, building, pos_start, pos_end, thickness=1):
+    def wall_mask(self, pos_start, pos_end, thickness=1):
         """
         builds a wall of type building from pos1 to pos2 with thickness
         """
