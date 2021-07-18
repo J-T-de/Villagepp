@@ -731,48 +731,7 @@ class Aiv(object):
         """
         raise NotImplementedError
 
-    def _bresenham(self, pos_start, pos_end):
-        """
-        implements bresenham algorithm for line drawing (from wikipedia)
-        """
-        x0, y0 = pos_start
-        x1, y1 = pos_end
-
-        origin = (min(x0,x1), min(y0,y1))
-        mask = np.zeros((self.aiv_size, self.aiv_size))
-        
-        dx =  abs(x1-x0)
-        if x0 < x1:
-            sx =1
-        else:
-            sx = -1
-    
-        dy = -abs(y1-y0)
-        if y0 < y1:
-            sy = 1
-        else:
-            sy = -1
-        
-        err = dx + dy
-
-        while True:
-            mask[y0, x0] = 1
-            if x0 == x1 and y0 == y1:
-                break
-
-            e2 = 2*err
-            if (e2 >= dy):
-                err += dy
-                x0 += sx
-            if (e2 <= dx):
-                err += dx
-                y0 += sy
-
-        print(mask)
-
-        return (origin, mask[origin[1]:origin[1]+ abs(dy) + 1, origin[0]:origin[0] + abs(dx) + 1])
-
-    def _bresenham_stairs(self, height, pos_start, pos_end):
+    def _bresenham(self, building, pos_start, pos_end):
         """
         implements bresenham algorithm for line drawing (from wikipedia)
         """
@@ -796,8 +755,22 @@ class Aiv(object):
         
         err = dx + dy
 
+        building_id = building.id
+
+        stairlike = False
+        if building.name in ["STAIRS_1", "STAIRS_2", "STAIRS_3", "STAIRS_4", "STAIRS_5", "STAIRS_6"]:
+            stairlike = True
+
         while True:
-            mask[y0, x0] = 1
+            if stairlike:
+                if building_id <= Building("STAIRS_6").id:
+                    mask[y0, x0] = building_id
+                    building_id += 1
+                else:
+                    mask[y0,x0] = 0
+            else:
+                mask[y0, x0] = building_id
+            
             if x0 == x1 and y0 == y1:
                 break
 
@@ -809,17 +782,16 @@ class Aiv(object):
                 err += dx
                 y0 += sy
 
-        return (origin, mask[origin[0]:origin[0] + abs(dy) + 1, origin[1]:origin[1]+ abs(dx) + 1])
-        
+        return (origin, mask[origin[1]:origin[1]+ abs(dy) + 1, origin[0]:origin[0] + abs(dx) + 1])        
 
-    def wall_isplaceable(self, pos_start, pos_end, thickness=1):
+    def wall_isplaceable(self, building, pos_start, pos_end, thickness=1):
         """
         returns true if wall is placeable, else false
         """
         if thickness != 1:
             raise NotImplementedError
 
-        (x_pos, y_pos), m = self._bresenham(pos_start, pos_end)
+        (x_pos, y_pos), m = self._bresenham(building, pos_start, pos_end)
         y_size, x_size = m.shape
 
         if x_pos < 0 or x_pos + x_size > self.aiv_size or y_pos < 0 or y_pos + y_size > self.aiv_size:
@@ -839,7 +811,7 @@ class Aiv(object):
         if thickness != 1:
             raise NotImplementedError
 
-        return self._bresenham(pos_start, pos_end)
+        return self._bresenham(building, pos_start, pos_end)
         
     def wall_place(self, building, pos_start, pos_end, thickness=1):
         """
@@ -848,7 +820,7 @@ class Aiv(object):
         if thickness != 1:
             raise NotImplementedError
 
-        if not self.wall_isplaceable(pos_start, pos_end, thickness=1):
+        if not self.wall_isplaceable(building, pos_start, pos_end, thickness=1):
             return
 
         # Update current step and total steps
@@ -862,21 +834,32 @@ class Aiv(object):
                     self.bmap_step[y, x] += 1
 
         # Update bmap_id and bmap_step 
-        (x_pos, y_pos), m = self._bresenham(pos_start, pos_end)
+        (x_pos, y_pos), m = self._bresenham(building, pos_start, pos_end)
         y_size, x_size = m.shape
+        building_id = building.id
 
-        for x in range(0,x_size):
-            for y in range(0,y_size):
-                self.bmap_id[y_pos+y, x_pos+x]      += building.id * m[y,x]
-                self.bmap_step[y_pos+y, x_pos+x]    += self.step_cur * m[y,x]
-                self.bmap_size[y_pos+y, x_pos+x]    += m[y,x]
-                self.bmap_tile[y_pos+y, x_pos+x]    += m[y,x]
-
-    def build_stairs(self, pos1, pos2, height, extendend = False):
-        """
-        builds stairs from pos1 with height to pos2; extended also builds the 6th stair
-        """
-        raise NotImplementedError
+        if building_id not in ["STAIRS_1", "STAIRS_2", "STAIRS_3", "STAIRS_4", "STAIRS_5", "STAIRS_6"]:
+            for x in range(0,x_size):
+                for y in range(0,y_size):
+                    self.bmap_id[y_pos+y, x_pos+x] += m[y,x]
+                    if m[y,x] > 0:
+                        self.bmap_step[y_pos+y, x_pos+x]    += self.step_cur
+                        self.bmap_size[y_pos+y, x_pos+x]    += 1
+                        self.bmap_tile[y_pos+y, x_pos+x]    += 1
+        else: # stairs
+            max = np.max(m)
+            min = np.min(m)
+            for stair in range(min, max):
+                for x in range(0, x_size):
+                    for y in range(0, y_size):
+                        if m[y,x] == stair:
+                            self.bmap_id[y_pos+y, x_pos+x] += m[y,x]
+                            if m[y,x] > 0:
+                                self.bmap_step[y_pos+y, x_pos+x]    += self.step_cur
+                                self.bmap_size[y_pos+y, x_pos+x]    += 1
+                                self.bmap_tile[y_pos+y, x_pos+x]    += 1
+                                self.step_cur += 1
+                                self.step_cur += 1
 
     def merge_steps(self, steps):
         """
