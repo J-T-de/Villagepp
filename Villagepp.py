@@ -279,12 +279,12 @@ class Villagepp(tk.Tk):
 
                     if(self.wall_origin != None):
                         #on second click: build wall/whatevs from wall_origin to current position
-                        if(self.parent.aiv.wall_isplaceable(self.wall_origin, position)):
+                        if(self.parent.aiv.wall_isplaceable(building, self.wall_origin, position)):
                             self.parent.aiv.wall_place(building, self.wall_origin, position)
                             self.wall_origin = None #reset status of wallplacement
                             self.parent.update_slider()
                             (xOrigin, yOrigin) = self.wall_origin
-                            mask = self.parent.aiv.wall_mask(self.wall_origin,position)
+                            mask = self.parent.aiv.wall_mask(building, self.wall_origin,position)
                             (ySize, xSize) = mask.size
                             self.redraw_partially((xOrigin*self.tile_size + xMapOrigin, yOrigin*self.tile_size + yMapOrigin), (xSize, ySize))
                     else:
@@ -349,8 +349,10 @@ class Villagepp(tk.Tk):
                     shadow = Image.new("RGBA", tile_size, (255, 0, 0, 127))
                 #TODO WALL
                 elif(kind == "WallLike"):
+                    buildingId = self.selected[1]
+                    building = Building(buildingId)
                     if(self.wall_origin != None):
-                        buildable = self.parent.aiv.wall_isplaceable(self.wall_origin, tile_position)
+                        buildable = self.parent.aiv.wall_isplaceable(building, self.wall_origin, tile_position)
                 
                         tile = None
                         if(buildable == True):
@@ -358,7 +360,7 @@ class Villagepp(tk.Tk):
                         else:
                             tile = Image.new("RGBA", tile_size, (255, 0, 0, 127))
                 
-                        ((x_shadow, y_shadow), mask) = self.parent.aiv.wall_mask(self.wall_origin, tile_position)
+                        ((x_shadow, y_shadow), mask) = self.parent.aiv.wall_mask(building, self.wall_origin, tile_position)
                         self.wall_shadow_origin = (x_shadow, y_shadow)
                         (y_size, x_size) = mask.shape
                 
@@ -368,7 +370,7 @@ class Villagepp(tk.Tk):
                                 if(mask[y, x] != 0):
                                     shadow.paste(tile, (x*self.tile_size, y*self.tile_size))
                     else:
-                        buildable = self.parent.aiv.wall_isplaceable(tile_position, tile_position)
+                        buildable = self.parent.aiv.wall_isplaceable(building, tile_position, tile_position)
 
                         if(buildable == True):
                             shadow = Image.new("RGBA", tile_size, (0, 255, 0, 127))
