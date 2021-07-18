@@ -799,7 +799,7 @@ class Aiv(object):
 
         for x in range(0, x_size):
             for y in range(0, y_size):
-                if m[y,x] == 1:
+                if m[y,x] != 0:
                     if self.bmap_id[y_pos+y, x_pos+x] != 0:
                         return False
         return True
@@ -823,22 +823,21 @@ class Aiv(object):
         if not self.wall_isplaceable(building, pos_start, pos_end, thickness=1):
             return
 
-        # Update current step and total steps
-        self.step_cur += 1
-        self.step_tot += 1
-
-        # all later steps +1
-        for x in range(0, self.aiv_size):
-            for y in range(0, self.aiv_size):
-                if (self.bmap_step[y, x] >= self.step_cur):
-                    self.bmap_step[y, x] += 1
-
         # Update bmap_id and bmap_step 
         (x_pos, y_pos), m = self._bresenham(building, pos_start, pos_end)
         y_size, x_size = m.shape
-        building_id = building.id
 
-        if building_id not in ["STAIRS_1", "STAIRS_2", "STAIRS_3", "STAIRS_4", "STAIRS_5", "STAIRS_6"]:
+        if building.name not in ["STAIRS_1", "STAIRS_2", "STAIRS_3", "STAIRS_4", "STAIRS_5", "STAIRS_6"]:
+
+            # Update current step and total steps
+            self.step_cur += 1
+            self.step_tot += 1
+
+            # all later steps +1
+            for x in range(0, self.aiv_size):
+                for y in range(0, self.aiv_size):
+                    if (self.bmap_step[y, x] >= self.step_cur):
+                        self.bmap_step[y, x] += 1
             for x in range(0,x_size):
                 for y in range(0,y_size):
                     self.bmap_id[y_pos+y, x_pos+x] += m[y,x]
@@ -847,19 +846,13 @@ class Aiv(object):
                         self.bmap_size[y_pos+y, x_pos+x]    += 1
                         self.bmap_tile[y_pos+y, x_pos+x]    += 1
         else: # stairs
-            max = np.max(m)
-            min = np.min(m)
-            for stair in range(min, max):
+            max = int(np.max(m))
+            min = int(np.min(m[np.nonzero(m)]))
+            for stair in range(min, max + 1):
                 for x in range(0, x_size):
                     for y in range(0, y_size):
                         if m[y,x] == stair:
-                            self.bmap_id[y_pos+y, x_pos+x] += m[y,x]
-                            if m[y,x] > 0:
-                                self.bmap_step[y_pos+y, x_pos+x]    += self.step_cur
-                                self.bmap_size[y_pos+y, x_pos+x]    += 1
-                                self.bmap_tile[y_pos+y, x_pos+x]    += 1
-                                self.step_cur += 1
-                                self.step_cur += 1
+                            self.building_place(Building(BuildingId(stair).name), (x_pos + x, y_pos + y))
 
     def merge_steps(self, steps):
         """

@@ -794,7 +794,7 @@ class Villagepp(tk.Tk):
                 tk.Button(frame_parent, text = "HIGH_CRENEL",   command = lambda: self.set_walllike("HIGH_CRENEL")).grid(row = 2, column = 0, sticky="nsew", columnspan = 2)
                 tk.Button(frame_parent, text = "LOW_WALL",      command = lambda: self.set_walllike("LOW_WALL")).grid(row = 1, column = 0, sticky="nsew", columnspan = 2)
                 tk.Button(frame_parent, text = "LOW_CRENEL",    command = lambda: self.set_walllike("LOW_CRENEL")).grid(row = 3, column = 0, sticky="nsew", columnspan = 2)
-                tk.Button(frame_parent, text = "STAIRS",        command = lambda: self.set_walllike("STAIRS")).grid(row = 4, column = 0, sticky="nsew", columnspan = 2)
+                tk.Button(frame_parent, text = "STAIRS",        command = lambda: self.set_walllike("STAIRS_1")).grid(row = 4, column = 0, sticky="nsew", columnspan = 2)
                 for r in range(5,11):
                     tk.Button(frame_parent, text = "", command = None).grid(row = r, column = 0, sticky="nsew", columnspan = 2)
             
