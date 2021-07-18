@@ -5,6 +5,8 @@ import tkinter.filedialog as fd
 import tkinter.messagebox as mb
 import copy
 
+import numpy as np
+
 from PIL import ImageFont, ImageDraw, ImageTk, Image
 
 from aiv import Aiv, Building, BuildingId, TroopId
@@ -86,7 +88,8 @@ class Villagepp(tk.Tk):
         self.bind_all("<d>",            self.map._move_east)
         
         # on map
-        self.map.canvas.bind("<Button-1>",      self.map.on_click)
+        self.map.canvas.bind("<Button-1>",      self.map.on_click_press)
+        self.map.canvas.bind("<B1-ButtonRelease>", self.map.on_click_release)
         self.map.canvas.bind("<B1-Motion>",     self.map.move_mouse)
         self.map.canvas.bind("<Button-3>",      self.map.deselect)
         self.map.canvas.bind("<Configure>",     self.map.on_resize)
@@ -146,6 +149,7 @@ class Villagepp(tk.Tk):
             self.shadow = None
             self.wall_shadow_origin = None #shadow/surface origin of wall-like in map/tile-coordinates
             self.wall_origin = None #real origin of wall-like structure in map/tile-coordinates
+            self.MoatLikeTempMap = None
             #dictionaries, building/troop-id as key, corresponding tiles (of type Image) as value
             self.loaded_building_tiles = {}
             self.building_tiles = {}
@@ -232,7 +236,26 @@ class Villagepp(tk.Tk):
                         return (x, y)
             raise ValueError("Timestep not found in map!")
 
-        def on_click(self, e):
+        def on_click_release(self, e):
+            self.last_mouse_pos = (e.x, e.y)
+            (x, y) = self.last_mouse_pos
+            if(self.selected != None):
+                kind = self.selected[0]
+                position = self.coordinate((x, y))
+
+                if(kind == "MoatLike"):
+                    buildingId = self.selected[1]
+                    building = Building(buildingId)
+
+                    self.parent.aiv.moat_pitch_place(building, self.MoatLikeTempMap)
+                    #self.MoatLikeTempMap = np.zeros((self.parent.aiv.aiv_size, self.parent.aiv.aiv_size))
+                    self.MoatLikeTempMap = None
+                    #performance ftw
+                    self.redraw_surface()
+                    self.update_shadow()
+                    self.update_screen()
+
+        def on_click_press(self, e):
             self.last_mouse_pos = (e.x, e.y)
             (x, y) = self.last_mouse_pos
             if(self.selected != None):
@@ -293,6 +316,13 @@ class Villagepp(tk.Tk):
                     else:
                         #on first click: save current position as wall origin
                         self.wall_origin = position
+                elif(kind == "MoatLike"):
+                    buildingId = self.selected[1]
+                    building = Building(buildingId)
+
+                    self.MoatLikeTempMap = np.zeros((self.parent.aiv.aiv_size, self.parent.aiv.aiv_size), np.int8)
+                    self.MoatLikeTempMap = self.parent.aiv.moat_pitch_mask(building, self.MoatLikeTempMap, position)
+                    self.update_shadow()
 
                 if(kind == "Unit" or kind == "DeleteUnit"):
                     #redraw building on which the unit was placed/deleted to redraw name of building
@@ -348,8 +378,30 @@ class Villagepp(tk.Tk):
                 elif(kind == "Unit"):
                     #unitId = self.selected[1]
                     shadow = Image.new("RGBA", tile_size, (0, 255, 0, 127))
+
                 elif(kind == "DeleteUnit" or kind == "DeleteBuilding"):
                     shadow = Image.new("RGBA", tile_size, (255, 0, 0, 127))
+
+                elif(kind == "MoatLike"):
+                    if(self.MoatLikeTempMap is not None):
+                        shadow = Image.new("RGBA", (self.parent.aiv.aiv_size*self.tile_size, self.parent.aiv.aiv_size*self.tile_size), (0, 0, 0, 0))
+                        tile = Image.new("RGBA", tile_size, (0, 0, 255, 127))
+                        for x in range(self.parent.aiv.aiv_size):
+                            for y in range(self.parent.aiv.aiv_size):
+                                if(self.MoatLikeTempMap[y, x] != 0):
+                                    shadow.paste(tile, (x*self.tile_size, y*self.tile_size))
+                        isplaceable = self.parent.aiv.moat_pitch_isplaceable(tile_position)
+                        (x_tile, y_tile) = tile_position
+                        if(isplaceable == False):
+                            tile = Image.new("RGBA", tile_size, (255, 0, 0, 127))
+                            shadow.paste(tile, (x_tile*self.tile_size, y_tile*self.tile_size))
+                    else:
+                        isplaceable = self.parent.aiv.moat_pitch_isplaceable(tile_position)
+                        if(isplaceable == True):
+                            shadow = Image.new("RGBA", (self.tile_size, self.tile_size), (0, 0, 255, 127))
+                        elif(isplaceable == False):
+                            shadow = Image.new("RGBA", (self.tile_size, self.tile_size), (255, 0, 0, 127))
+
                 elif(kind == "WallLike"):
                     buildingId = self.selected[1]
                     building = Building(buildingId)
@@ -427,8 +479,21 @@ class Villagepp(tk.Tk):
             xDiff = e.x - x0
             yDiff = e.y - y0
             self.last_mouse_pos = (e.x, e.y)
+            if(self.selected == None): #mouse dragged when nothing selected -> move map
+                self.move_map((xDiff, yDiff))
+            if(self.selected != None): #mouse dragged when something selected:
+                kind = self.selected[0]
+                position = self.coordinate(self.last_mouse_pos)
 
-            self.move_map((xDiff, yDiff))
+                if(kind == "MoatLike"):
+                    buildingId = self.selected[1]
+                    building = Building(buildingId)
+
+                    self.MoatLikeTempMap = self.parent.aiv.moat_pitch_mask(building, self.MoatLikeTempMap, position)
+                    self.update_shadow()
+            self.update_screen()
+
+
 
         def move_map(self, posDiff):
             (x, y) = self.origin
@@ -472,6 +537,28 @@ class Villagepp(tk.Tk):
 
                     self.screen.paste(screen_shadow, screen_position)
 
+                elif(self.selected[0] == "MoatLike"):
+                    (x_tile, y_tile) = self.coordinate(self.last_mouse_pos)
+                    (x_map_shadow_origin, y_map_shadow_origin) = (x_tile*self.tile_size, y_tile*self.tile_size)
+                    (x0, y0) = self.origin
+                    x_screen_pos = x_map_shadow_origin + x0
+                    y_screen_pos = y_map_shadow_origin + y0
+                    screen_position = (x_screen_pos, y_screen_pos)
+
+
+                    if(self.MoatLikeTempMap is not None):
+                        background = copy.deepcopy(self.surface)
+
+                        screen_shadow = Image.alpha_composite(background, self.shadow)
+                        self.screen.paste(screen_shadow, self.origin)
+
+                    elif(self.MoatLikeTempMap is None):
+                        (x_map_shadow_end, y_map_shadow_end) = (x_map_shadow_origin + self.tile_size, y_map_shadow_origin + self.tile_size)
+                        background = self.surface.crop((x_map_shadow_origin, y_map_shadow_origin, x_map_shadow_end, y_map_shadow_end))
+
+                        screen_shadow = Image.alpha_composite(background, self.shadow)
+                        self.screen.paste(screen_shadow, screen_position)
+
                 else:
                     (x_tile, y_tile) = self.coordinate(self.last_mouse_pos)
 
@@ -512,7 +599,6 @@ class Villagepp(tk.Tk):
                         troopTile = self.troop_tiles[troopId]
                         background = self.surface.crop((x*self.tile_size, y*self.tile_size, (x+1)*self.tile_size, (y+1)*self.tile_size))
                         newMapTile = Image.alpha_composite(background, troopTile)
-                        # newMapTile.show()
                         self.surface.paste(newMapTile, (x*self.tile_size, y*self.tile_size))
 
         #        def drawBuildingOnMap(self, building, position):
@@ -809,8 +895,8 @@ class Villagepp(tk.Tk):
                             tk.Button(frame_parent, text = enum.name,   command = lambda l = enum.value: self.set_unit(l)).grid(row = r, column = c, sticky="nsew")
 
             elif category == "Mo":
-                tk.Button(frame_parent, text = "MOAT",  command = None).grid(row = 0, column = 0, sticky="nsew", columnspan = 2)
-                tk.Button(frame_parent, text = "PITCH", command = None).grid(row = 1, column = 0, sticky="nsew", columnspan = 2)
+                tk.Button(frame_parent, text = "MOAT",  command = lambda: self.set_moatlike("MOAT")).grid(row = 0, column = 0, sticky="nsew", columnspan = 2)
+                tk.Button(frame_parent, text = "PITCH", command = lambda: self.set_moatlike("PITCH")).grid(row = 1, column = 0, sticky="nsew", columnspan = 2)
                 for r in range(2,11):
                     tk.Button(frame_parent, text = "",  command = None).grid(row = r, column = 0, sticky="nsew", columnspan = 2)
 
@@ -845,6 +931,9 @@ class Villagepp(tk.Tk):
                 frame_parent.grid_rowconfigure(r, weight=1)
                 for c in range(0,2):
                     frame_parent.grid_columnconfigure(c, weight=1)
+
+        def set_moatlike(self, id):
+            self.parent.map.selected = ("MoatLike", id)
         
         def set_walllike(self, id):
             self.parent.map.selected = ("WallLike", id)
@@ -974,7 +1063,7 @@ class Villagepp(tk.Tk):
         self.navbar = self.Navbar(self.frame_navbar, self)
 
 buildingPrintNames = {
-#these are invisible/dont get printed
+#these names are invisible/dont get drawn
 #    "NOTHING" : ""     = 0
 #    "BORDER_TILE" : "" = 1
 #    "AUTO" : ""        = 2
