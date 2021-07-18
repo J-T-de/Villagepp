@@ -854,6 +854,36 @@ class Aiv(object):
                         if m[y,x] == stair:
                             self.building_place(Building(BuildingId(stair).name), (x_pos + x, y_pos + y))
 
+    def moat_pitch_isplaceable(self, pos, thickness = 1):
+        x_pos, y_pos = pos
+        x_size, y_size = (thickness, thickness)
+
+        if x_pos < 0 or x_pos + x_size > self.aiv_size or y_pos < 0 or y_pos + y_size > self.aiv_size:
+            return False
+
+        for x in range(0, x_size):
+            for y in range(0, y_size):
+                if self.bmap_id[y_pos+y, x_pos+x] == 0:
+                    return True
+        
+        return False
+
+    def moat_pitch_mask(self, building, mask, pos, thickness = 1):
+        x_pos, y_pos = pos
+        x_size, y_size = (thickness, thickness)
+
+        for x in range(0, x_size):
+            for y in range(0, y_size):
+                if self.bmap_id[y_pos + y, x_pos + x] == 0:
+                    mask[y,x] == building.id
+        return mask
+
+    def moat_pitch_place(self, building, mask):
+        for x in range(0, self.aiv_size):
+            for y in range(0, self.aiv_size):
+                if mask[y,x] != 0 and self.bmap_id[y,x] == 0:
+                    self.bmap_id[y,x] == building.id
+
     def merge_steps(self, steps):
         """
         merges steps into the steps with the lowest number
