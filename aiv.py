@@ -875,14 +875,14 @@ class Aiv(object):
         for x in range(0, x_size):
             for y in range(0, y_size):
                 if self.bmap_id[y_pos + y, x_pos + x] == 0:
-                    mask[y,x] == building.id
+                    mask[y_pos + y, x_pos + x] = building.id
         return mask
 
     def moat_pitch_place(self, building, mask):
         for x in range(0, self.aiv_size):
             for y in range(0, self.aiv_size):
                 if mask[y,x] != 0 and self.bmap_id[y,x] == 0:
-                    self.bmap_id[y,x] == building.id
+                    self.bmap_id[y,x] = building.id
 
     def merge_steps(self, steps):
         """
