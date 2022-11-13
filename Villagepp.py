@@ -88,12 +88,12 @@ class Villagepp(tk.Tk):
         self.bind_all("<d>",            self.map._move_east)
         
         # on map
-        self.map.canvas.bind("<Button-1>",      self.map.on_click_press)
+        self.map.canvas.bind("<Button-1>",         self.map.on_click_press)
         self.map.canvas.bind("<B1-ButtonRelease>", self.map.on_click_release)
-        self.map.canvas.bind("<B1-Motion>",     self.map.move_mouse)
-        self.map.canvas.bind("<Button-3>",      self.map.deselect)
-        self.map.canvas.bind("<Configure>",     self.map.on_resize)
-        self.map.canvas.bind("<Motion>",        self.map.on_drag)
+        self.map.canvas.bind("<B1-Motion>",        self.map.move_mouse)
+        self.map.canvas.bind("<Button-3>",         self.map.deselect)
+        self.map.canvas.bind("<Configure>",        self.map.on_resize)
+        self.map.canvas.bind("<Motion>",           self.map.on_drag)
 
         # other
         self.protocol("WM_DELETE_WINDOW",   self.close)
@@ -107,30 +107,30 @@ class Villagepp(tk.Tk):
             file_menu = tk.Menu(menubar, tearoff = 0)
             menubar.add_cascade(label=lang_data["File"][lang], menu = file_menu)
 
-            file_menu.add_command(label=lang_data["New"][lang],     command = parent.new,     accelerator = "Ctrl+N")
-            file_menu.add_command(label = "Open...",                command = parent.open,    accelerator = "Ctrl+O")
-            file_menu.add_command(label = "Save",                   command = parent.save,    accelerator = "Ctrl+S")
-            file_menu.add_command(label = "Save as...",             command = parent.save_as, accelerator = "Ctrl+Shift+S")
+            file_menu.add_command(label=lang_data["New"][lang], command = parent.new,     accelerator = "Ctrl+N")
+            file_menu.add_command(label = "Open...",            command = parent.open,    accelerator = "Ctrl+O")
+            file_menu.add_command(label = "Save",               command = parent.save,    accelerator = "Ctrl+S")
+            file_menu.add_command(label = "Save as...",         command = parent.save_as, accelerator = "Ctrl+Shift+S")
             file_menu.add_separator()
             # TODO: export popup
-            file_menu.add_command(label = "Export Preview...",      command = parent.export_preview)
-            file_menu.add_command(label = "Export Full...",         command = parent.export_full)
+            file_menu.add_command(label = "Export Preview...", command = parent.export_preview)
+            file_menu.add_command(label = "Export Full...",    command = parent.export_full)
 
             file_menu.add_separator()
-            file_menu.add_command(label= "Exit",                    command = parent.close)
+            file_menu.add_command(label= "Exit", command = parent.close)
             
             # view menu
             view_menu = tk.Menu(menubar, tearoff = 0)
             menubar.add_cascade(label= "View", menu = view_menu)
 
-            view_menu.add_command(label = "Zoom in",                command = parent.map.zoom_in,   accelerator = "Ctrl++")
-            view_menu.add_command(label = "Zoom out",               command = parent.map.zoom_out,  accelerator = "Ctrl+-")
+            view_menu.add_command(label = "Zoom in",  command = parent.map.zoom_in,   accelerator = "Ctrl++")
+            view_menu.add_command(label = "Zoom out", command = parent.map.zoom_out,  accelerator = "Ctrl+-")
 
             # help menu
             help_menu = tk.Menu(menubar, tearoff = 0)   
             menubar.add_cascade(label= "Help", menu = help_menu)
 
-            help_menu.add_command(label = "About...",               command = parent.about)
+            help_menu.add_command(label = "About...", command = parent.about)
 
     class Map(tk.Frame):
         def __init__(self, frame_parent, parent):
@@ -138,33 +138,39 @@ class Villagepp(tk.Tk):
 
             self.canvas = tk.Canvas(frame_parent)
 
-            self.parent = parent
+            self.parent       = parent
+            self.aiv          = parent.aiv
             self.frame_parent = frame_parent
 
             self.canvas.grid(row = 0, column = 0, sticky = "nsew")
             frame_parent.columnconfigure(0, weight = 1)
-            frame_parent.rowconfigure(0, weight = 1)
+            frame_parent.rowconfigure   (0, weight = 1)
 
-            self.tile_size = 32
-            self.shadow = None
+            self.tile_size          = 32
+            self.shadow             = None
             self.wall_shadow_origin = None #shadow/surface origin of wall-like in map/tile-coordinates
-            self.wall_origin = None #real origin of wall-like structure in map/tile-coordinates
-            self.MoatLikeTempMap = None
+            self.wall_origin        = None #real origin of wall-like structure in map/tile-coordinates
+            self.MoatLikeTempMap    = None
             #dictionaries, building/troop-id as key, corresponding tiles (of type Image) as value
             self.loaded_building_tiles = {}
-            self.building_tiles = {}
-            self.troop_tiles = {}
+            self.building_tiles        = {}
+            self.troop_tiles           = {}
             self.load_tileset("res/tiles.bmp")
 
+            self.map_px_size = self.tile_size * self.aiv.aiv_size
 
-            self.origin = (0,0) #in pixel
+
+            self.origin         = (0,0) #in pixel
             self.last_mouse_pos = (0,0)
-            self.selected = None
+            self.selected       = None
 
             #size of whole editor
             self.screen_size = (self.canvas.winfo_width(), self.canvas.winfo_height())
 
-            self.surface = Image.new("RGBA", (self.tile_size*self.parent.aiv.aiv_size, self.tile_size*self.parent.aiv.aiv_size), (0, 0, 0, 255))
+            self.surface = Image.new("RGBA",
+                                    (self.map_px_size,
+                                     self.map_px_size),
+                                    (0, 0, 0, 255))
 
             blackground = Image.new("RGB", self.screen_size, (0, 0, 0))
             blackground.paste(self.surface, self.origin)
@@ -172,28 +178,37 @@ class Villagepp(tk.Tk):
             self.screen = ImageTk.PhotoImage(blackground)
             self.canvas.create_image(0, 0, image=self.screen, anchor=tk.NW)
 
-            self.surface = Image.new("RGBA", (self.tile_size*self.parent.aiv.aiv_size, self.tile_size*self.parent.aiv.aiv_size), (0, 0, 0, 255))
+            self.surface = Image.new("RGBA",
+                                    (self.map_px_size,
+                                     self.map_px_size),
+                                    (0, 0, 0, 255))
             self.update_screenTSize()
             self.redraw_surface()
 
         def update_screenTSize(self):
             (frame_width, frame_height) = self.screen_size
-            self.screenTSize = ((frame_width + self.tile_size - 1)//self.tile_size + 1, (frame_height + self.tile_size - 1)//self.tile_size + 1)
+            self.screenTSize = ((frame_width + self.tile_size - 1)//self.tile_size + 1,
+                                (frame_height + self.tile_size - 1)//self.tile_size + 1)
 
         def zoom_out(self, e = None):
             (x0, y0) = self.origin #in units of pixel
 
             if(self.tile_size != 1):
                 self.tile_size = self.tile_size//2
+                self.map_px_size = self.tile_size * self.aiv.aiv_size
                 self.resize_tileset()
 
                 (frame_width, frame_height) = self.screen_size
                 #zoom_out to center of the screen
-                self.origin = (x0//2 + frame_width//4, y0//2 + frame_height//4)
+                self.origin = (x0//2 + frame_width//4,
+                               y0//2 + frame_height//4)
 
                 self.update_screenTSize()
 
-                self.surface = Image.new("RGBA", (self.tile_size*self.parent.aiv.aiv_size, self.tile_size*self.parent.aiv.aiv_size), (0, 0, 0, 255))
+                self.surface = Image.new("RGBA",
+                                         (self.map_px_size,
+                                         self.map_px_size),
+                                         (0, 0, 0, 255))
                 self.redraw_partially((0,0), self.screenTSize)
                 self.update_screen()
 
@@ -201,38 +216,43 @@ class Villagepp(tk.Tk):
             (x0, y0) = self.origin #in units of pixel
 
             self.tile_size = self.tile_size*2
+            self.map_px_size = self.tile_size * self.aiv.aiv_size
             self.resize_tileset()
 
             (frame_width, frame_height) = self.screen_size
             #zoom_in on center of the screen
-            self.origin = (x0*2 - frame_width//2, y0*2 - frame_height//2)
+            self.origin = (x0*2 - frame_width//2,
+                           y0*2 - frame_height//2)
 
             self.update_screenTSize()
 
 
-            self.surface = Image.new("RGBA", (self.tile_size*self.parent.aiv.aiv_size, self.tile_size*self.parent.aiv.aiv_size), (0, 0, 0, 255))
+            self.surface = Image.new("RGBA",
+                                     (self.map_px_size,
+                                     self.map_px_size),
+                                     (0, 0, 0, 255))
             self.redraw_partially((0,0), self.screenTSize)
             self.update_screen()
 
         def deselect(self, e):
-            self.selected = None
-            self.wall_origin = None
+            self.selected           = None
+            self.wall_origin        = None
             self.wall_shadow_origin = None
-            self.last_mouse_pos = (e.x, e.y)
+            self.last_mouse_pos     = (e.x, e.y)
             self.update_shadow()
             self.update_screen()
 
         def coordinate(self, position):
-            (x, y) = position
+            (x, y)   = position
             (x0, y0) = self.origin
-            x = (x - x0)//self.tile_size
-            y = (y - y0)//self.tile_size
+            x        = (x - x0)//self.tile_size
+            y        = (y - y0)//self.tile_size
             return (x, y)
 
         def get_building_origin_from_timestep(self, timestep):
-            for x in range(0, self.parent.aiv.aiv_size):
-                for y in range(0, self.parent.aiv.aiv_size):
-                    if(self.parent.aiv.bmap_step[y, x] == timestep):
+            for x in range(0, self.aiv.aiv_size):
+                for y in range(0, self.aiv.aiv_size):
+                    if(self.aiv.bmap_step[y, x] == timestep):
                         return (x, y)
             raise ValueError("Timestep not found in map!")
 
@@ -247,8 +267,8 @@ class Villagepp(tk.Tk):
                     buildingId = self.selected[1]
                     building = Building(buildingId)
 
-                    self.parent.aiv.moat_pitch_place(building, self.MoatLikeTempMap)
-                    #self.MoatLikeTempMap = np.zeros((self.parent.aiv.aiv_size, self.parent.aiv.aiv_size))
+                    self.aiv.moat_pitch_place(building, self.MoatLikeTempMap)
+                    #self.MoatLikeTempMap = np.zeros((self.aiv.aiv_size, self.aiv.aiv_size))
                     self.MoatLikeTempMap = None
                     #performance ftw
                     self.redraw_surface()
@@ -266,8 +286,8 @@ class Villagepp(tk.Tk):
                     buildingId = self.selected[1]
                     building = Building(buildingId)
 
-                    if(self.parent.aiv.building_isplaceable(building, position)):
-                        self.parent.aiv.building_place(building, position)
+                    if(self.aiv.building_isplaceable(building, position)):
+                        self.aiv.building_place(building, position)
                         self.parent.update_slider()
                         (y_size, x_size) = building.mask_full().shape
 
@@ -275,25 +295,27 @@ class Villagepp(tk.Tk):
                         self.redraw_partially((x, y), (x_size, y_size))
                 elif(kind == "Unit"):
                     unitId = self.selected[1]
-                    self.parent.aiv.troop_place(unitId, position)
+                    self.aiv.troop_place(unitId, position)
                 elif(kind == "DeleteUnit"):
-                    self.parent.aiv.troop_remove(position)
+                    self.aiv.troop_remove(position)
                 elif(kind == "DeleteBuilding"):
                     (xDelete, yDelete) = position
-                    (xOrigin, yOrigin) = self.get_building_origin_from_timestep(self.parent.aiv.bmap_step[yDelete, xDelete])
-                    del_building_id = self.parent.aiv.bmap_id[yOrigin, xOrigin]
+                    (xOrigin, yOrigin) = self.get_building_origin_from_timestep(self.aiv.bmap_step[yDelete, xDelete])
+                    del_building_id = self.aiv.bmap_id[yOrigin, xOrigin]
                     if(del_building_id != BuildingId.NOTHING):
                         #delete building in aiv
-                        self.parent.aiv.building_remove((xOrigin, yOrigin))
+                        self.aiv.building_remove((xOrigin, yOrigin))
                         self.parent.update_slider()
 
                         #redraw map
                         del_building_name = BuildingId(del_building_id).name
-                        building = Building(del_building_name)
-                        (ySize, xSize) = building.mask_full().shape
+                        building          = Building(del_building_name)
+                        (ySize, xSize)    = building.mask_full().shape
 
                         (xMapOrigin, yMapOrigin) = self.origin
-                        self.redraw_partially((xOrigin*self.tile_size + xMapOrigin, yOrigin*self.tile_size + yMapOrigin), (xSize, ySize))
+                        self.redraw_partially((xOrigin*self.tile_size + xMapOrigin,
+                                              yOrigin*self.tile_size + yMapOrigin),
+                                              (xSize, ySize))
 
                 elif(kind == "WallLike"):
                     buildingId = self.selected[1]
@@ -301,41 +323,43 @@ class Villagepp(tk.Tk):
 
                     if(self.wall_origin != None):
                         #on second click: build wall/whatevs from wall_origin to current position
-                        if(self.parent.aiv.wall_isplaceable(building, self.wall_origin, position)):
-                            self.parent.aiv.wall_place(building, self.wall_origin, position)
+                        if(self.aiv.wall_isplaceable(building, self.wall_origin, position)):
+                            self.aiv.wall_place(building, self.wall_origin, position)
 
                             self.parent.update_slider()
-                            (mapMaskOrigin, mask) = self.parent.aiv.wall_mask(building, self.wall_origin, position)
+                            (mapMaskOrigin, mask) = self.aiv.wall_mask(building, self.wall_origin, position)
                             (ySize, xSize) = mask.shape
                             self.redraw_partially(mapMaskOrigin, (xSize, ySize))
 
-                            self.wall_origin = None #reset status of wallplacement
+                            self.wall_origin        = None #reset status of wallplacement
                             #resets shadow to tile of size 1 (is explicitly handled in update_shadow)
                             self.wall_shadow_origin = None
-                            self.shadow = None
+                            self.shadow             = None
                     else:
                         #on first click: save current position as wall origin
                         self.wall_origin = position
                 elif(kind == "MoatLike"):
                     buildingId = self.selected[1]
-                    building = Building(buildingId)
+                    building   = Building(buildingId)
 
-                    self.MoatLikeTempMap = np.zeros((self.parent.aiv.aiv_size, self.parent.aiv.aiv_size), np.int8)
-                    self.MoatLikeTempMap = self.parent.aiv.moat_pitch_mask(building, self.MoatLikeTempMap, position)
+                    self.MoatLikeTempMap = np.zeros((self.aiv.aiv_size, self.aiv.aiv_size), np.int8)
+                    self.MoatLikeTempMap = self.aiv.moat_pitch_mask(building, self.MoatLikeTempMap, position)
                     self.update_shadow()
 
                 if(kind == "Unit" or kind == "DeleteUnit"):
                     #redraw building on which the unit was placed/deleted to redraw name of building
                     (xDelete, yDelete) = position
-                    (xOrigin, yOrigin) = self.get_building_origin_from_timestep(self.parent.aiv.bmap_step[yDelete, xDelete])
-                    building_id = self.parent.aiv.bmap_id[yOrigin, xOrigin] #possible building on that the unit stood
+                    (xOrigin, yOrigin) = self.get_building_origin_from_timestep(self.aiv.bmap_step[yDelete, xDelete])
+                    building_id = self.aiv.bmap_id[yOrigin, xOrigin] #possible building on that the unit stood
                     if(building_id != BuildingId.NOTHING):
                         #redraw map
-                        building_name = BuildingId(building_id).name
-                        building = Building(building_name)
-                        (ySize, xSize) = building.mask_full().shape
+                        building_name            = BuildingId(building_id).name
+                        building                 = Building(building_name)
+                        (ySize, xSize)           = building.mask_full().shape
                         (xMapOrigin, yMapOrigin) = self.origin
-                        self.redraw_partially((xOrigin*self.tile_size + xMapOrigin, yOrigin*self.tile_size + yMapOrigin), (xSize, ySize))
+                        self.redraw_partially((xOrigin*self.tile_size + xMapOrigin,
+                                              yOrigin*self.tile_size + yMapOrigin),
+                                              (xSize, ySize))
                     else:
                         self.redraw_partially((x, y), (1, 1))
 
@@ -356,12 +380,12 @@ class Villagepp(tk.Tk):
                 tile_size = (self.tile_size, self.tile_size)
 
                 if(kind == "Building"):
-                    buildingId = self.selected[1]
-                    building = Building(buildingId)
-                    mask = building.mask_full()
+                    buildingId       = self.selected[1]
+                    building         = Building(buildingId)
+                    mask             = building.mask_full()
                     (y_size, x_size) = mask.shape
 
-                    buildable = self.parent.aiv.building_isplaceable(building, tile_position)
+                    buildable = self.aiv.building_isplaceable(building, tile_position)
 
                     tile = None
                     if(buildable == True):
@@ -384,19 +408,22 @@ class Villagepp(tk.Tk):
 
                 elif(kind == "MoatLike"):
                     if(self.MoatLikeTempMap is not None):
-                        shadow = Image.new("RGBA", (self.parent.aiv.aiv_size*self.tile_size, self.parent.aiv.aiv_size*self.tile_size), (0, 0, 0, 0))
+                        shadow = Image.new("RGBA",
+                                           (self.map_px_size,
+                                           self.map_px_size),
+                                           (0, 0, 0, 0))
                         tile = Image.new("RGBA", tile_size, (0, 0, 255, 127))
-                        for x in range(self.parent.aiv.aiv_size):
-                            for y in range(self.parent.aiv.aiv_size):
+                        for x in range(self.aiv.aiv_size):
+                            for y in range(self.aiv.aiv_size):
                                 if(self.MoatLikeTempMap[y, x] != 0):
                                     shadow.paste(tile, (x*self.tile_size, y*self.tile_size))
-                        isplaceable = self.parent.aiv.moat_pitch_isplaceable(tile_position)
+                        isplaceable = self.aiv.moat_pitch_isplaceable(tile_position)
                         (x_tile, y_tile) = tile_position
                         if(isplaceable == False):
                             tile = Image.new("RGBA", tile_size, (255, 0, 0, 127))
                             shadow.paste(tile, (x_tile*self.tile_size, y_tile*self.tile_size))
                     else:
-                        isplaceable = self.parent.aiv.moat_pitch_isplaceable(tile_position)
+                        isplaceable = self.aiv.moat_pitch_isplaceable(tile_position)
                         if(isplaceable == True):
                             shadow = Image.new("RGBA", (self.tile_size, self.tile_size), (0, 0, 255, 127))
                         elif(isplaceable == False):
@@ -406,7 +433,7 @@ class Villagepp(tk.Tk):
                     buildingId = self.selected[1]
                     building = Building(buildingId)
                     if(self.wall_origin != None):
-                        buildable = self.parent.aiv.wall_isplaceable(building, self.wall_origin, tile_position)
+                        buildable = self.aiv.wall_isplaceable(building, self.wall_origin, tile_position)
                 
                         tile = None
                         if(buildable == True):
@@ -414,7 +441,7 @@ class Villagepp(tk.Tk):
                         else:
                             tile = Image.new("RGBA", tile_size, (255, 0, 0, 127))
                 
-                        ((x_shadow, y_shadow), mask) = self.parent.aiv.wall_mask(building, self.wall_origin, tile_position)
+                        ((x_shadow, y_shadow), mask) = self.aiv.wall_mask(building, self.wall_origin, tile_position)
                         self.wall_shadow_origin = (x_shadow, y_shadow)
                         (y_size, x_size) = mask.shape
                 
@@ -424,7 +451,7 @@ class Villagepp(tk.Tk):
                                 if(mask[y, x] != 0):
                                     shadow.paste(tile, (x*self.tile_size, y*self.tile_size))
                     else:
-                        buildable = self.parent.aiv.wall_isplaceable(building, tile_position, tile_position)
+                        buildable = self.aiv.wall_isplaceable(building, tile_position, tile_position)
 
                         if(buildable == True):
                             shadow = Image.new("RGBA", tile_size, (0, 255, 0, 127))
@@ -489,7 +516,7 @@ class Villagepp(tk.Tk):
                     buildingId = self.selected[1]
                     building = Building(buildingId)
 
-                    self.MoatLikeTempMap = self.parent.aiv.moat_pitch_mask(building, self.MoatLikeTempMap, position)
+                    self.MoatLikeTempMap = self.aiv.moat_pitch_mask(building, self.MoatLikeTempMap, position)
                     self.update_shadow()
             self.update_screen()
 
@@ -594,7 +621,7 @@ class Villagepp(tk.Tk):
             (x_size, y_size) = (1,1)
             for x in range(x0, x0+x_size):
                 for y in range(y0, y0+y_size):
-                    troopId = self.parent.aiv.tmap[y, x]
+                    troopId = self.aiv.tmap[y, x]
                     if(troopId != 0):
                         troopTile = self.troop_tiles[troopId]
                         background = self.surface.crop((x*self.tile_size, y*self.tile_size, (x+1)*self.tile_size, (y+1)*self.tile_size))
@@ -609,23 +636,23 @@ class Villagepp(tk.Tk):
         #            namePositions = []
         #            for x in range(x0, x0+x_size):
         #                for y in range(y0, y0+y_size):
-        #                    buildingId = self.parent.aiv.bmap_id[y, x]
+        #                    buildingId = self.aiv.bmap_id[y, x]
         #                    buildingSurface = None
         #                    #grass
         #                    if(buildingId == BuildingId.NOTHING):
-        #                        buildingSurface = self.building_tiles[buildingId][self.parent.aiv.gmap[y, x]]
+        #                        buildingSurface = self.building_tiles[buildingId][self.aiv.gmap[y, x]]
         #                    #moat or pitch or any other tile that doesn't have an orientation - walls?
         #                    elif(buildingId < 30):
         #                        buildingSurface = self.building_tiles[buildingId]
         #                    else:
-        #                        buildingSurface = self.building_tiles[buildingId][self.parent.aiv.bmap_tile[y, x]]
-        #                    if(self.parent.aiv.bmap_step[y, x] >= self.parent.aiv.step_cur):
+        #                        buildingSurface = self.building_tiles[buildingId][self.aiv.bmap_tile[y, x]]
+        #                    if(self.aiv.bmap_step[y, x] >= self.aiv.step_cur):
         #                        buildingSurface.putalpha(127)
         #                    self.surface.paste(buildingSurface, (x*self.tile_size, y*self.tile_size))
-        #                    if(self.parent.aiv.bmap_tile[y, x] != 0):
+        #                    if(self.aiv.bmap_tile[y, x] != 0):
         #                        namePositions.append((x,y))
         #
-        #                    troopId = self.parent.aiv.tmap[y, x]
+        #                    troopId = self.aiv.tmap[y, x]
         #                    if(troopId != 0):
         #                        troopTile = self.troop_tiles[troopId]
         #
@@ -642,39 +669,39 @@ class Villagepp(tk.Tk):
             x0 = max(0, x0)
             y0 = max(0, y0)
 
-            x_max = min(x0+x_size, self.parent.aiv.aiv_size)
-            y_max = min(y0+y_size, self.parent.aiv.aiv_size)
+            x_max = min(x0+x_size, self.aiv.aiv_size)
+            y_max = min(y0+y_size, self.aiv.aiv_size)
 
             namePositions = []
             for x in range(x0, x_max):
                 for y in range(y0, y_max):
-                    buildingId = self.parent.aiv.bmap_id[y, x]
+                    buildingId = self.aiv.bmap_id[y, x]
                     buildingSurface = None
                     #grass
                     if(buildingId == BuildingId.NOTHING):
-                        buildingSurface = copy.deepcopy(self.building_tiles[buildingId][self.parent.aiv.gmap[y, x]])
+                        buildingSurface = copy.deepcopy(self.building_tiles[buildingId][self.aiv.gmap[y, x]])
                     #moat or pitch or any other tile that doesn't have an orientation - walls?
                     elif(buildingId < 30):
                         buildingSurface = copy.deepcopy(self.building_tiles[buildingId])
                     else:
-                        buildingSurface = copy.deepcopy(self.building_tiles[buildingId][self.parent.aiv.bmap_tile[y, x]])
-                    if(self.parent.aiv.bmap_step[y, x] > self.parent.aiv.step_cur):
+                        buildingSurface = copy.deepcopy(self.building_tiles[buildingId][self.aiv.bmap_tile[y, x]])
+                    if(self.aiv.bmap_step[y, x] > self.aiv.step_cur):
                         buildingSurface.putalpha(127)
                     self.surface.paste(buildingSurface, (x*self.tile_size, y*self.tile_size))
-                    if(self.parent.aiv.bmap_tile[y, x] != 0):
+                    if(self.aiv.bmap_tile[y, x] != 0):
                         namePositions.append((x,y))
             #get building origin (left upper corner)
             nameOrigins = []
             for (x, y) in namePositions:
-                (xBuildingOrigin, yBuildingOrigin) = self.get_building_origin_from_timestep(self.parent.aiv.bmap_step[y, x])
+                (xBuildingOrigin, yBuildingOrigin) = self.get_building_origin_from_timestep(self.aiv.bmap_step[y, x])
                 nameOrigins.append((xBuildingOrigin, yBuildingOrigin))
             #remove duplicates in positions
             namePositions = list(dict.fromkeys(nameOrigins))
             for (x, y) in namePositions:
-                buildingId = self.parent.aiv.bmap_id[y, x]
+                buildingId = self.aiv.bmap_id[y, x]
                 buildingName = BuildingId(buildingId).name
                 buildingName = buildingPrintNames[buildingName]
-                buildingSize = self.parent.aiv.bmap_size[y, x]
+                buildingSize = self.aiv.bmap_size[y, x]
 
                 #get a font
                 font = ImageFont.load_default()
@@ -698,7 +725,7 @@ class Villagepp(tk.Tk):
             #draw troops after names to see their names better
             for x in range(x0, x_max):
                 for y in range(y0, y_max):
-                    troopId = self.parent.aiv.tmap[y, x]
+                    troopId = self.aiv.tmap[y, x]
                     if(troopId != 0):
                         troopTile = self.troop_tiles[troopId]
 
@@ -708,8 +735,8 @@ class Villagepp(tk.Tk):
 
 
         def redraw_surface(self): #redraws the map-surface, but not the screen
-            self.surface = Image.new("RGBA", (self.tile_size*self.parent.aiv.aiv_size, self.tile_size*self.parent.aiv.aiv_size), (0, 0, 0, 255))
-            self.redraw_partially(self.origin, (self.parent.aiv.aiv_size, self.parent.aiv.aiv_size))
+            self.surface = Image.new("RGBA", (self.map_px_size, self.map_px_size), (0, 0, 0, 255))
+            self.redraw_partially(self.origin, (self.aiv.aiv_size, self.aiv.aiv_size))
 
         def get_input_tile(self, x, y, inputBMP):
             originOffset = 1 #first tile offset in x/y-direction
