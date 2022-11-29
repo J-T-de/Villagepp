@@ -300,7 +300,9 @@ class Villagepp(tk.Tk):
                     self.aiv.troop_remove(position)
                 elif(kind == "DeleteBuilding"):
                     (xDelete, yDelete) = position
-                    (xOrigin, yOrigin) = self.get_building_origin_from_timestep(self.aiv.bmap_step[yDelete, xDelete])
+                    (xOrigin, yOrigin) = self.get_building_origin_from_timestep(
+                                         self.aiv.bmap_step[yDelete, xDelete])
+
                     del_building_id = self.aiv.bmap_id[yOrigin, xOrigin]
                     if(del_building_id != BuildingId.NOTHING):
                         #delete building in aiv
@@ -706,21 +708,30 @@ class Villagepp(tk.Tk):
                 #get a font
                 font = ImageFont.load_default()
                 #TODO: do the same for troop-names
-                #blank image for text, transparent
-                txtTile = Image.new("RGBA", (buildingSize*self.tile_size, buildingSize*self.tile_size), (255, 255, 255, 0))
-                #get a drawing context to the image that's drawn on
+                #get a dummy drawing context to calculate size of text
+                txtTile = Image.new("RGBA", (0, 0), (255, 255, 255, 0))
                 d = ImageDraw.Draw(txtTile)
-                (txtSizeX, txtSizeY) = d.multiline_textsize(buildingName, font=font)
+                (txtSizeX, txtSizeY) = d.multiline_textbbox((0, 0), buildingName, font=font, align="center")[2:4]
+                txtSizeX = int(txtSizeX)
+                txtSizeY = int(txtSizeY)
+                border = int(2*2) # size of border around text-box
+                #blank image for text, transparent
+                txtTile = Image.new("RGBA", (txtSizeX + border, txtSizeY + border), (255, 255, 255, 0))
+                #get actual drawing context
+                d = ImageDraw.Draw(txtTile)
                 #add rectangle around text
-                d.rectangle([int(buildingSize*self.tile_size/2 - (txtSizeX + 1)/2), int(buildingSize*self.tile_size/2 - txtSizeY/2), int(buildingSize*self.tile_size/2 + (txtSizeX + 1)/2), int(buildingSize*self.tile_size/2 + txtSizeY/2)], fill=(255, 255, 255, 255), width=0)
+                d.rectangle([0, 0, txtSizeX + border, txtSizeY + border], fill=(255, 255, 255, 255), width=0)
                 #draw text to image
-                #offset text x-origin by +1/2 to round up to next pixel in order to get better spacing to the surrounding rectangle
-                d.multiline_text((int(buildingSize*self.tile_size/2 - txtSizeX/2 + 1/2), int(buildingSize*self.tile_size/2 - txtSizeY/2)), str(buildingName), fill="black", anchor="mm", font=font, align = "center")
+                d.multiline_text((border//2, border//2), str(buildingName), fill="black", anchor="la", font=font, align = "center")
 
-                background = self.surface.crop((x*self.tile_size, y*self.tile_size, (x+buildingSize)*self.tile_size, (y+buildingSize)*self.tile_size))
+                (txtOriginX, txtOriginY) = (int(x*self.tile_size + (buildingSize*self.tile_size - (txtSizeX + border//2))//2), int(y*self.tile_size + (buildingSize*self.tile_size - (txtSizeY + border/2))/2))
+
+                # get part of map where text-label is put on to
+                background = self.surface.crop((txtOriginX, txtOriginY, txtOriginX + txtSizeX + border, txtOriginY + txtSizeY + border))
+                # print text-label
                 newMapTile = Image.alpha_composite(background, txtTile)
-
-                self.surface.paste(newMapTile, (x*self.tile_size, y*self.tile_size))
+                # paste it back onto the map
+                self.surface.paste(newMapTile, (txtOriginX - border//2, txtOriginY - border//2))
 
             #draw troops after names to see their names better
             for x in range(x0, x_max):
@@ -768,7 +779,8 @@ class Villagepp(tk.Tk):
 
                 #get a font
                 font = ImageFont.load_default()
-                (txtSizeX, txtSizeY) = font.getsize(troopName)
+                (left, top, right, bottom) = font.getbbox(troopName)
+                (txtSizeX, txtSizeY) = (right - left, bottom - top)
 
                 #get a drawing context from blank image
                 d = ImageDraw.Draw(txt)
@@ -834,7 +846,8 @@ class Villagepp(tk.Tk):
 
                 #get a font
                 font = ImageFont.load_default()
-                (txtSizeX, txtSizeY) = font.getsize(str(elem.name))
+                (left, top, right, bottom) = font.getbbox(str(elem.name))
+                (txtSizeX, txtSizeY) = (right - left, bottom - top)
 
                 #get a drawing context to the image that's drawn on
                 d = ImageDraw.Draw(txt)
